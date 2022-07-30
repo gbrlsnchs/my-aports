@@ -1,6 +1,7 @@
 **/src
 **/pkg
 cache/
+data/
 docs/keys/*.rsa
 
 neovim.yml
