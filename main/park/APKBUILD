@@ -1,0 +1,41 @@
+# Maintainer: Gabriel Sanches <gabriel@gsr.dev>
+pkgname=park
+pkgver=0.1.4
+pkgrel=0
+pkgdesc="Configuration-based dotfiles manager"
+url="https://codeberg.org/gbrlsnchs/park"
+arch="all"
+license="MIT"
+makedepends="cargo"
+subpackages="
+	$pkgname-bash-completion
+	$pkgname-zsh-completion
+	$pkgname-fish-completion
+	"
+source="park-$pkgver.tar.gz::https://codeberg.org/gbrlsnchs/park/archive/v$pkgver.tar.gz"
+builddir="$srcdir/park"
+
+build() {
+	cargo build --release --locked
+}
+
+check() {
+	cargo test --release --locked
+}
+
+package() {
+	install -Dm755 "target/release/park" "$pkgdir/usr/bin/park"
+
+	install -Dm644 target/completions/_park -t \
+		"$pkgdir/usr/share/zsh/site-functions/"
+	install -Dm644 target/completions/park.bash \
+		"$pkgdir/usr/share/bash-completion/completions/park"
+	install -Dm644 target/completions/park.fish -t \
+		"$pkgdir/usr/share/fish/completions/"
+
+	install -Dm644 LICENSE "$pkgdir"/usr/share/licenses/park/LICENSE
+}
+
+sha512sums="
+8fa38953d3f14f33ad0c588e149e3e17ae852f987ffe660c84bc363c219ae5f979948f90614fcef4c86a02fef6eb10879a608c837437de7c85ae4869884e6662  park-0.1.4.tar.gz
+"
