@@ -4,6 +4,6 @@
 
 cache/
 data/
-docs/keys/*.rsa
+public/keys/*.rsa
 
 neovim.yml
