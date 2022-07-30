@@ -1,0 +1,41 @@
+# Maintainer: Gabriel Sanches <gabriel@gsr.dev>
+pkgname=kana
+pkgver=0.2.0
+pkgrel=0
+pkgdesc="CLI program for transliterating romaji text to either hiragana or katakana"
+url="https://codeberg.org/gbrlsnchs/kana"
+arch="all"
+license="MIT"
+makedepends="cargo"
+subpackages="
+	$pkgname-bash-completion
+	$pkgname-zsh-completion
+	$pkgname-fish-completion
+	"
+source="kana-$pkgver.tar.gz::https://codeberg.org/gbrlsnchs/kana/archive/v$pkgver.tar.gz"
+builddir="$srcdir/kana"
+
+build() {
+	cargo build --release --locked
+}
+
+check() {
+	cargo test --release --locked
+}
+
+package() {
+	install -Dm755 "target/release/kana" "$pkgdir/usr/bin/kana"
+
+	install -Dm644 target/completions/_kana -t \
+		"$pkgdir/usr/share/zsh/site-functions/"
+	install -Dm644 target/completions/kana.bash \
+		"$pkgdir/usr/share/bash-completion/completions/kana"
+	install -Dm644 target/completions/kana.fish -t \
+		"$pkgdir/usr/share/fish/completions/"
+
+	install -Dm644 LICENSE "$pkgdir"/usr/share/licenses/kana/LICENSE
+}
+
+sha512sums="
+5715eb965c452b3bf11bfa0e22120e7abdfd7b27c49f42638423f6e5b67a072001fe61c7b1b3cd745a88cf1b1abd5350c92e540abd1bf62ced7c030a8a9d8767  kana-0.2.0.tar.gz
+"
