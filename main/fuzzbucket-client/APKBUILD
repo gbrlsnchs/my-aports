@@ -1,0 +1,37 @@
+# Maintainer: Gabriel Sanches <gabriel@gsr.dev>
+pkgname=fuzzbucket-client
+pkgver=0.12.2
+pkgrel=0
+pkgdesc="CLI tool to communicate with Fuzzbucket servers"
+url="https://github.com/rstudio/fuzzbucket"
+arch="noarch"
+license="MIT"
+makedepends="py3-setuptools"
+options="!check" # tests need too many AWS-related Python packages, some don't exist in the repos
+source="
+	fuzzbucket-client-$pkgver.tar.gz::https://github.com/rstudio/fuzzbucket/archive/$pkgver.tar.gz
+	version.patch
+	mypy.patch
+	"
+builddir="$srcdir/fuzzbucket-$pkgver"
+
+prepare() {
+	default_prepare
+
+	echo "version = '$pkgver'" > fuzzbucket_client/__version__.py
+}
+
+build() {
+	python3 setup.py build
+}
+
+package() {
+	python3 setup.py install --prefix=/usr --root="$pkgdir"
+
+	install -Dm644 LICENSE.md "$pkgdir"/usr/share/licenses/$pkgname/LICENSE
+}
+sha512sums="
+fb537832990859716378722c0c8215cd6f77d2829fdc5c9d26d9c3490bf0e38468c90edd6552165b08f6dfd8a63f07483650489e0cb8d81026688a14e3a1149f  fuzzbucket-client-0.12.2.tar.gz
+82cedd3dd40af63f6dc306c8b647641e7fa5b04bccf90880aa5d48565c1537506bf2101750ec9c3098b9d859ca139846fcf67124d8d3218ccdd26593978939c4  version.patch
+8f108f14d9b20a86988d5b6e95571287b06fee51c061854aa925671dbce6a0843c34f45466dd918583463c72cc5255c340bc31c65de54e7366601c6d1e538a7b  mypy.patch
+"
