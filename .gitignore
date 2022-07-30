@@ -1,0 +1,6 @@
+**/src
+**/pkg
+cache/
+docs/keys/*.rsa
+
+neovim.yml
