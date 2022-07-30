@@ -1,0 +1,29 @@
+#!/bin/sh
+
+set -e
+
+pkgdir="$1"
+arch="${2:-x86_64}" # TODO
+pkgdir="$PWD/$pkgdir"
+priv_key="$(find ./docs/keys -name '*.rsa' -printf "%f\n")"
+
+mkdir --parent data
+echo "PACKAGER_PRIVKEY=/tmp/$priv_key" > data/abuild.conf
+
+podman container run \
+	--rm \
+	--interactive \
+	--tty \
+	--userns=keep-id \
+	--group-add=abuild \
+	--env="REPODEST=/var/my-aports" \
+	--env="SRCDEST=/var/cache/distfiles" \
+	--workdir="$pkgdir" \
+	--volume="$pkgdir:$pkgdir" \
+	--volume="$PWD/docs/repositories:/var/my-aports" \
+	--volume="$PWD/cache:/var/cache/distfiles" \
+	--volume="$PWD/repositories:/etc/apk/repositories" \
+	--volume="$PWD/docs/keys/$priv_key:/tmp/$priv_key" \
+	--volume="$PWD/docs/keys/$priv_key.pub:/etc/apk/keys/$priv_key.pub" \
+	--volume="$PWD/data/abuild.conf:/etc/abuild.conf" \
+	aports abuild -r

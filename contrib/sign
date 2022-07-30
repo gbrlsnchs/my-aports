@@ -1,0 +1,24 @@
+#!/bin/sh
+
+set -e
+
+repo="${1:-main}"
+arch="${2:-x86_64}" # TODO
+priv_key="$(find ./docs/keys -name '*.rsa' -printf "%f\n")"
+
+mkdir --parent data
+echo "PACKAGER_PRIVKEY=/tmp/$priv_key" > data/abuild.conf
+
+podman container run \
+	--rm \
+	--interactive \
+	--tty \
+	--userns=keep-id \
+	--group-add=abuild \
+	--env="REPODEST=/var/my-aports" \
+	--workdir="/var/my-aports/$repo/$arch" \
+	--volume="$PWD/docs/repositories:/var/my-aports" \
+	--volume="$PWD/docs/keys/$priv_key:/tmp/$priv_key" \
+	--volume="$PWD/docs/keys/$priv_key.pub:/tmp/$priv_key.pub" \
+	--volume="$PWD/data/abuild.conf:/etc/abuild.conf" \
+	aports abuild-sign APKINDEX.tar.gz

@@ -1,0 +1,25 @@
+#!/bin/sh
+
+set -e
+
+repo="${1:-main}"
+arch="${2:-x86_64}" # TODO
+
+indexables="$(
+	find "docs/repositories/$repo/$arch" \
+		-type f \
+		-printf "%f\n" \
+		\( -name 'APKINDEX.tar.gz' -or -name '*.apk' \) \
+	| sort
+)"
+
+# shellcheck disable=SC2086
+podman container run \
+	--rm \
+	--interactive \
+	--tty \
+	--userns=keep-id \
+	--group-add=abuild \
+	--workdir="/var/my-aports/$repo/$arch" \
+	--volume="$PWD/docs/repositories:/var/my-aports" \
+	aports apk index -o $indexables

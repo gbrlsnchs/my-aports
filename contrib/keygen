@@ -1,0 +1,15 @@
+#!/bin/sh
+
+author="$(git config --global user.name)"
+author="$author <$(git config --global user.email)>"
+
+mkdir --parent keys
+rm --force keys/*
+
+podman container run \
+	--rm \
+	--userns=keep-id \
+	--env="PACKAGER='${author}'" \
+	--workdir=/tmp \
+	--volume="${PWD}/keys:/tmp/.abuild" \
+	aports abuild-keygen -n

@@ -1,0 +1,15 @@
+#!/bin/sh
+
+pkgdir="$1"
+pkgdir="${PWD}/${pkgdir}"
+
+mkdir --parent cache
+
+podman container run \
+	--rm \
+	--userns=keep-id \
+	--group-add=abuild \
+	--workdir="$pkgdir" \
+	--volume="${pkgdir}:${pkgdir}" \
+	--volume="${PWD}/cache:/var/cache/distfiles" \
+	aports abuild checksum
