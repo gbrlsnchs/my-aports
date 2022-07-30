@@ -7,5 +7,5 @@ tree \
 	-P '*.apk' \
 	--noreport \
 	--charset=utf-8 \
-	 -o docs/index.html \
-	 docs
+	 -o public/index.html \
+	 public

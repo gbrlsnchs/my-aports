@@ -11,5 +11,5 @@ podman container run \
 	--userns=keep-id \
 	--env="PACKAGER='${author}'" \
 	--workdir=/tmp \
-	--volume="${PWD}/keys:/tmp/.abuild" \
+	--volume="${PWD}/public/keys:/tmp/.abuild" \
 	aports abuild-keygen -n
