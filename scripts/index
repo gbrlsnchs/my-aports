@@ -23,8 +23,8 @@ EOF
 # shellcheck disable=SC2086
 podman container run \
 	--rm \
-	--interactive \
 	--tty \
+	--interactive \
 	--userns=keep-id \
 	--group-add=abuild \
 	--workdir="/var/my-aports/$repo/$arch" \

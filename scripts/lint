@@ -5,6 +5,8 @@ pkgdir="${PWD}/${pkgdir}"
 
 podman container run \
 	--rm \
+	--tty \
+	--interactive \
 	--userns=keep-id \
 	--workdir="$pkgdir" \
 	--volume="${pkgdir}:${pkgdir}" \
