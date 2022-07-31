@@ -5,6 +5,6 @@ src/**/.cargo
 cache/
 data/
 public/keys/*.rsa
-repositories
+/repositories
 
 neovim.yml
