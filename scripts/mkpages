@@ -1,13 +1,35 @@
 #!/bin/sh
 
-base="${1:-public}"
+_gen_html() {
+	base="$1"
 
-tree \
-	-H . \
-	-P '*.rsa.pub' \
-	-P '*.tar.gz' \
-	-P '*.apk' \
-	--noreport \
-	--charset=utf-8 \
-	 -o "$base/index.html" \
-	 "$base"
+	if [ ! -d "$base" ]; then
+		return
+	fi
+
+	tree \
+		-H . \
+		-P '*.rsa.pub' \
+		-P '*.tar.gz' \
+		-P '*.apk' \
+		--noreport \
+		--charset=utf-8 \
+		-o "$base/index.html" \
+		"$base"
+
+	echo "Generated pages for '$base'"
+}
+
+_gen_html public
+
+for dir in public/*; do
+	_gen_html "$dir"
+done
+
+for dir in public/repositories/*; do
+	_gen_html "$dir"
+done
+
+for dir in public/repositories/**/*; do
+	_gen_html "$dir"
+done
