@@ -4,7 +4,7 @@ These are my custom aports for my private aports repository at https://aports.gs
 
 ## How to use
 ### Public key
-Download public keys from https://aports.gsr.dev and place them at `/etc/apk/keys/`.
+Download public keys from https://aports.gsr.dev/keys and place them at `/etc/apk/keys/`.
 
 ### Repository
 Add the repository to the repository list. I prefer using a tag for it:
