@@ -1,3 +1,4 @@
+# Contributor: Gabriel Sanches <gabriel@gsr.dev>
 # Maintainer: Gabriel Sanches <gabriel@gsr.dev>
 pkgname=fuzzbucket-client
 pkgver=0.12.2
