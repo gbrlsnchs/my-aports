@@ -1,6 +1,6 @@
-**/src
-**/pkg
-**/.cargo
+src/**/src
+src/**/pkg
+src/**/.cargo
 
 cache/
 data/
