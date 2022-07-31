@@ -1,0 +1,18 @@
+#!/bin/sh
+
+pkgdir="$1"
+pkgname="$(basename "$pkgdir")"
+pkgdir="$PWD/$(dirname "$pkgdir")"
+
+shift
+
+cmd_args="$*"
+
+podman container run \
+	--rm \
+	--tty \
+	--interactive \
+	--userns=keep-id \
+	--workdir="$pkgdir" \
+	--volume="$pkgdir:$pkgdir" \
+	aports newapkbuild $cmd_args "$(basename "$pkgname")"
