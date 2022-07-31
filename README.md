@@ -24,7 +24,7 @@ If it's the first time using the repository, build the base container image and 
 pair:
 ```console
 ./scripts/mkimg
-./scripts/keygen`
+./scripts/keygen
 ```
 Then, for every package you want to build (considering you already have the appropriate template and
 necesary files):
