@@ -13,6 +13,13 @@ indexables="$(
 	| sort
 )"
 
+cat << EOF > repositories
+$(for repo in public/repositories/*/; do echo "/var/my-aports/$(basename "$repo")"; done)
+https://dl-cdn.alpinelinux.org/alpine/edge/main
+https://dl-cdn.alpinelinux.org/alpine/edge/community
+https://dl-cdn.alpinelinux.org/alpine/edge/testing
+EOF
+
 # shellcheck disable=SC2086
 podman container run \
 	--rm \
