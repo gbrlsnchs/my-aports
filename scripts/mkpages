@@ -1,5 +1,7 @@
 #!/bin/sh
 
+base="${1:-public}"
+
 tree \
 	-H . \
 	-P '*.rsa.pub' \
@@ -7,5 +9,5 @@ tree \
 	-P '*.apk' \
 	--noreport \
 	--charset=utf-8 \
-	 -o public/index.html \
-	 public
+	 -o "$base/index.html" \
+	 "$base"
