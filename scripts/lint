@@ -1,7 +1,7 @@
 #!/bin/sh
 
 pkgdir="$1"
-pkgdir="${PWD}/${pkgdir}"
+pkgdir="$PWD/$pkgdir"
 
 podman container run \
 	--rm \
@@ -9,5 +9,5 @@ podman container run \
 	--interactive \
 	--userns=keep-id \
 	--workdir="$pkgdir" \
-	--volume="${pkgdir}:${pkgdir}" \
+	--volume="$pkgdir:$pkgdir" \
 	aports apkbuild-lint APKBUILD
