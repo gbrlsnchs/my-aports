@@ -1,0 +1,48 @@
+# Contributor: Gabriel Sanches <gabriel@gsr.dev>
+# Maintainer: Gabriel Sanches <gabriel@gsr.dev>
+pkgname=ttf-gofont
+pkgver="2.010"
+pkgrel=0
+_gitrev="062f8c9fd539a03d281e76028160d6f6ea545d39"
+pkgdesc="Typeface designed for Go source code"
+url="https://blog.golang.org/go-fonts"
+arch="noarch"
+license="BSD-3-Clause"
+options="!nocheck"
+source="
+	Go-Bold-Italic.ttf+$_gitrev::https://github.com/golang/image/blob/$_gitrev/font/gofont/ttfs/Go-Bold-Italic.ttf
+	Go-Bold.ttf+$_gitrev::https://github.com/golang/image/blob/$_gitrev/font/gofont/ttfs/Go-Bold.ttf
+	Go-Italic.ttf+$_gitrev::https://github.com/golang/image/blob/$_gitrev/font/gofont/ttfs/Go-Italic.ttf
+	Go-Medium-Italic.ttf+$_gitrev::https://github.com/golang/image/blob/$_gitrev/font/gofont/ttfs/Go-Medium-Italic.ttf
+	Go-Medium.ttf+$_gitrev::https://github.com/golang/image/blob/$_gitrev/font/gofont/ttfs/Go-Medium.ttf
+	Go-Mono-Bold-Italic.ttf+$_gitrev::https://github.com/golang/image/blob/$_gitrev/font/gofont/ttfs/Go-Mono-Bold-Italic.ttf
+	Go-Mono-Bold.ttf+$_gitrev::https://github.com/golang/image/blob/$_gitrev/font/gofont/ttfs/Go-Mono-Bold.ttf
+	Go-Mono-Italic.ttf+$_gitrev::https://github.com/golang/image/blob/$_gitrev/font/gofont/ttfs/Go-Mono-Italic.ttf
+	Go-Mono.ttf+$_gitrev::https://github.com/golang/image/blob/$_gitrev/font/gofont/ttfs/Go-Mono.ttf
+	Go-Regular.ttf+$_gitrev::https://github.com/golang/image/blob/$_gitrev/font/gofont/ttfs/Go-Regular.ttf
+	Go-Smallcaps-Italic.ttf+$_gitrev::https://github.com/golang/image/blob/$_gitrev/font/gofont/ttfs/Go-Smallcaps-Italic.ttf
+	Go-Smallcaps.ttf+$_gitrev::https://github.com/golang/image/blob/$_gitrev/font/gofont/ttfs/Go-Smallcaps.ttf
+	"
+
+package() {
+	cd "$srcdir"
+
+	local file; for file in *.ttf+*; do
+		install -m 644 -D "$file" \
+			"$pkgdir/usr/share/fonts/truetype/gofont/${file%%+*}"
+	done
+}
+sha512sums="
+b56d1e036546d801759cefa885ccbc0393b3df66cf8b0b822fa0d99bee533e162512717dce45717cb1c9788df61144d163b264841358a4b5cd30d2e5a05d78f2  Go-Bold-Italic.ttf+062f8c9fd539a03d281e76028160d6f6ea545d39
+3454da01958e4d4d527110b65286dafebe12a1242651e1eda23cc4a545a1b8b78c9c067d2692e4d6002664806e107b594f0405fe261fa2c7407affaa30808daa  Go-Bold.ttf+062f8c9fd539a03d281e76028160d6f6ea545d39
+d1ed3a1e2feaa7151572b0ac64c18aa3843eaa1465216901b98899c3b029dcacbc7f827ad567cbcf018aee037eedefc77aa9dff7b5abf61378e2fd73a24e19dc  Go-Italic.ttf+062f8c9fd539a03d281e76028160d6f6ea545d39
+7d8164c386b6a9c905c6518fce05a62c5a8f1ad7d0b6b5de3ab2db2eee0e2130cec5b9135d9aa8b0ee8e838627f18a15595bb410d4194f38d9c608d33e5fc467  Go-Medium-Italic.ttf+062f8c9fd539a03d281e76028160d6f6ea545d39
+af74cd5db3d38c707e4515a17d92234d212696a21a95d8fc40347ae8cfb1e95929145aa402aa302bb34eeaa7764f35637e1b1dfd48ea7b43a5b979124a8d3863  Go-Medium.ttf+062f8c9fd539a03d281e76028160d6f6ea545d39
+d8d10823f298504cbb7a894c782cece7fa77d38b65b05eb3863f113ffcbd0058c6c698f46116562b505fbf157c2f6452787407325ed2544c1ea50bb9be1a0867  Go-Mono-Bold-Italic.ttf+062f8c9fd539a03d281e76028160d6f6ea545d39
+f442a09358012a96f533f18386ee6ebc57592c399a78a4f8b9488500b24f4b06c01dcfd6715311fc465381273ed016a5c42350eb2d40df958e53089df4835b1a  Go-Mono-Bold.ttf+062f8c9fd539a03d281e76028160d6f6ea545d39
+2209b532be31a8ebe05348532e886c23e9323a0b9ec36cfe0952a325433690dec4b3fe201b7723cab29380fa9132291ea7ec0284ee4303c17b286af7ee591e46  Go-Mono-Italic.ttf+062f8c9fd539a03d281e76028160d6f6ea545d39
+372835800ce672b3f5d3aa0fe79c43cdbb2f95d95f5deb1df39b106e45673949868f4fcd9c624a43cfbfaae85e9c2d1263084cfc8063c2deb4dc30e2df331178  Go-Mono.ttf+062f8c9fd539a03d281e76028160d6f6ea545d39
+17fc22e53a96c0118edf4625ffe69980a19cb3ddba929f11a10c57fb4855cb9ec59bcd28112c8e4636ca4172ef1e0de1c6d8b977d1a4ea22f45dabaaeb206366  Go-Regular.ttf+062f8c9fd539a03d281e76028160d6f6ea545d39
+97f9b4e8ecf3f849e7e48dc952bab95c739a87a54d7d9fa4da586577002b22885488690b6f8d6d327a875381ef71aecccb52c7294503e053563703afea365d79  Go-Smallcaps-Italic.ttf+062f8c9fd539a03d281e76028160d6f6ea545d39
+b20a1f7f60326c8f10659a8529ac21978e4b60f0f8164c9db8664d26a46bc3ff0f8bc14b6966660c83ce9d2b0cadef51e5619a1408d8b4e28ad7d2f4e65ce550  Go-Smallcaps.ttf+062f8c9fd539a03d281e76028160d6f6ea545d39
+"
