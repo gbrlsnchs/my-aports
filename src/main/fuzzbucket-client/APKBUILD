@@ -9,6 +9,7 @@ arch="noarch"
 license="MIT"
 makedepends="py3-setuptools"
 options="!check" # tests need too many AWS-related Python packages, some don't exist in the repos
+subpackages="$pkgname-doc"
 source="
 	fuzzbucket-client-$pkgver.tar.gz::https://github.com/rstudio/fuzzbucket/archive/$pkgver.tar.gz
 	version.patch
@@ -29,7 +30,7 @@ build() {
 package() {
 	python3 setup.py install --prefix=/usr --root="$pkgdir"
 
-	install -Dm644 LICENSE.md "$pkgdir"/usr/share/licenses/$pkgname/LICENSE
+	install -Dm644 LICENSE.md "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
 }
 sha512sums="
 fb537832990859716378722c0c8215cd6f77d2829fdc5c9d26d9c3490bf0e38468c90edd6552165b08f6dfd8a63f07483650489e0cb8d81026688a14e3a1149f  fuzzbucket-client-0.12.2.tar.gz
