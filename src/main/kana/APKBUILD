@@ -9,6 +9,7 @@ arch="all"
 license="MIT"
 makedepends="cargo"
 subpackages="
+	$pkgname-doc
 	$pkgname-bash-completion
 	$pkgname-zsh-completion
 	$pkgname-fish-completion
@@ -34,7 +35,7 @@ package() {
 	install -Dm644 target/completions/kana.fish -t \
 		"$pkgdir/usr/share/fish/completions/"
 
-	install -Dm644 LICENSE "$pkgdir"/usr/share/licenses/kana/LICENSE
+	install -Dm644 LICENSE "$pkgdir/usr/share/licenses/kana/LICENSE"
 }
 
 sha512sums="
