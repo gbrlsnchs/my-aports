@@ -19,8 +19,8 @@ EOF
 
 podman container run \
 	--rm \
-	--interactive \
 	--tty \
+	--interactive \
 	--userns=keep-id \
 	--group-add=abuild \
 	--env="REPODEST=/var/my-aports" \
