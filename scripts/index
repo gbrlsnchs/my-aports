@@ -7,13 +7,6 @@ target_arch="${2:-x86_64}" # TODO
 
 indexables="$(find "public/repositories/$target_repo/$target_arch" -name '*.apk' -printf "%f\n")"
 
-cat << EOF > repositories
-$(for repo in public/repositories/*/; do echo "/var/my-aports/$(basename "$repo")"; done)
-https://dl-cdn.alpinelinux.org/alpine/edge/main
-https://dl-cdn.alpinelinux.org/alpine/edge/community
-https://dl-cdn.alpinelinux.org/alpine/edge/testing
-EOF
-
 # shellcheck disable=SC2086
 podman container run \
 	--rm \

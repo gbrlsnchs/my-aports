@@ -9,13 +9,6 @@ priv_key="$(find ./public/keys -name '*.rsa' -printf "%f\n")"
 mkdir --parent data
 echo "PACKAGER_PRIVKEY=/tmp/$priv_key" > data/abuild.conf
 
-cat << EOF > repositories
-$(for repo in public/repositories/*/; do echo "/var/my-aports/$(basename "$repo")"; done)
-https://dl-cdn.alpinelinux.org/alpine/edge/main
-https://dl-cdn.alpinelinux.org/alpine/edge/community
-https://dl-cdn.alpinelinux.org/alpine/edge/testing
-EOF
-
 podman container run \
 	--rm \
 	--tty \
