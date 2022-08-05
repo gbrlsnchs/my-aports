@@ -1,5 +1,6 @@
 src/**/src
 src/**/pkg
+src/**/.abuild
 src/**/.cargo
 
 cache/
