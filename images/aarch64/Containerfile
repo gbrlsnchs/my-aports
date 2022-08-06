@@ -1,0 +1,5 @@
+FROM docker.io/arm64v8/alpine:edge
+
+RUN apk update && apk add alpine-sdk atools
+
+ENTRYPOINT []
