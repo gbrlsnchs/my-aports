@@ -1,9 +1,9 @@
 # Contributor: Gabriel Sanches <gabriel@gsr.dev>
 # Maintainer: Gabriel Sanches <gabriel@gsr.dev>
 pkgname=font-go
-pkgver="2.010"
+pkgver=2.010
 pkgrel=0
-_gitrev="062f8c9fd539a03d281e76028160d6f6ea545d39"
+_gitrev="41969df76e82aeec85fa3821b1e24955ea993001"
 pkgdesc="Typeface designed for Go source code"
 url="https://blog.golang.org/go-fonts"
 arch="noarch"
@@ -14,21 +14,22 @@ subpackages="
 	$pkgname-sans
 	$pkgname-mono
 	"
-_url="https://github.com/golang/image/blob/$_gitrev/font/gofont/ttfs"
+options="!check"
+_url="https://github.com/golang/image/raw/$_gitrev/font/gofont/ttfs"
 source="
-	$_url/Go-Bold-Italic.ttf
-	$_url/Go-Bold.ttf
-	$_url/Go-Italic.ttf
-	$_url/Go-Medium-Italic.ttf
-	$_url/Go-Medium.ttf
-	$_url/Go-Mono-Bold-Italic.ttf
-	$_url/Go-Mono-Bold.ttf
-	$_url/Go-Mono-Italic.ttf
-	$_url/Go-Mono.ttf
-	$_url/Go-Regular.ttf
-	$_url/Go-Smallcaps-Italic.ttf
-	$_url/Go-Smallcaps.ttf
-	LICENSE::$_url/README
+	Go-Bold-Italic.ttf+$_gitrev::$_url/Go-Bold-Italic.ttf
+	Go-Bold.ttf+$_gitrev::$_url/Go-Bold.ttf
+	Go-Italic+$_gitrev::$_url/Go-Italic.ttf
+	Go-Medium-Italic.ttf+$_gitrev::$_url/Go-Medium-Italic.ttf
+	Go-Medium.ttf+$_gitrev::$_url/Go-Medium.ttf
+	Go-Mono-Bold-Italic.ttf+$_gitrev::$_url/Go-Mono-Bold-Italic.ttf
+	Go-Mono-Bold.ttf+$_gitrev::$_url/Go-Mono-Bold.ttf
+	Go-Mono-Italic.ttf+$_gitrev::$_url/Go-Mono-Italic.ttf
+	Go-Mono.ttf+$_gitrev::$_url/Go-Mono.ttf
+	Go-Regular.ttf+$_gitrev::$_url/Go-Regular.ttf
+	Go-Smallcaps-Italic.ttf+$_gitrev::$_url/Go-Smallcaps-Italic.ttf
+	Go-Smallcaps.ttf+$_gitrev::$_url/Go-Smallcaps.ttf
+	LICENSE+$_gitrev::$_url/README
 	"
 
 package() {
@@ -37,10 +38,14 @@ package() {
 		$pkgname-mono
 	"
 
-	install -Dm644 "$srcdir"/*.ttf \
-		-t "$pkgdir/usr/share/fonts/TTF"
+	cd "$srcdir"
 
-	install -Dm644 "$srcdir/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+	local file; for file in *.ttf+*; do
+		install -m 644 -D "$file" \
+			"$pkgdir/usr/share/fonts/TTF/${file%%+*}"
+	done
+
+	install -Dm644 "$srcdir/LICENSE+$_gitrev" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
 }
 
 sans() {
@@ -48,12 +53,12 @@ sans() {
 
 	cd "$srcdir"
 
-	local file; for file in Go*.ttf; do
+	local file; for file in Go*.ttf+*; do
 		case "$file" in
 			Go-Mono*) continue ;;
 		esac
 
-		amove "usr/share/fonts/TTF/$file"
+		amove "usr/share/fonts/TTF/${file%%+*}"
 	done
 }
 
@@ -62,23 +67,23 @@ mono() {
 
 	cd "$srcdir"
 
-	local file; for file in Go-Mono*.ttf; do
-		amove "usr/share/fonts/TTF/$file"
+	local file; for file in Go-Mono*.ttf+*; do
+		amove "usr/share/fonts/TTF/${file%%+*}"
 	done
 }
 
 sha512sums="
-a8aa65b4cc765b58052086d7ec7ccfcf3cd64801e3191666d7498705b80c90d8f2bfeda7b5947e1973c8e171d91a527818cecc7ff119a35656eac0f87300414f  Go-Bold-Italic.ttf
-cce85d64517e8f27e9f6505584245dce327f2e9ddea40846967890f502e17622a3cd26be02cc88044b4593892d495402526fcbcd27a7cba5fc288193396a6f8a  Go-Bold.ttf
-527b6064f20dfff3180eb491866d595df39786b7d6890c0f09a1b7e6d8a33bfedff89de335a412a09df6760df1ea767444c72e8a7d4de19d2b1fe02722cf48c6  Go-Italic.ttf
-602f227dec3601a8c7ac033a195ce74dfec598a4706a2ea05a9bcd90f62972a4a096b8ba41c078fd129e4fdbfe9e1ddf8289a97332e1a2b7e553f9e049ab3dfb  Go-Medium-Italic.ttf
-d0bf20dd846745dc2396ee3753af2ade80d002db4aed6f4a7b5c2a4ddf4305a76cb1def2343924adfb3f201dce83fc4b388195e868392b8bc9a4a294f486feb8  Go-Medium.ttf
-8a5ad66221b878942ac572005aa2eeb4f89a1c8ecaa4d300c515451cb12ab82257554a7b04dd3d1b6265b525d4d9cbcffad57dcfb7152232943b187305ce41f6  Go-Mono-Bold-Italic.ttf
-8787a65a2b8250e273107951a8c6ec3036f03bef224e1d17a77f0f06ff4ee4f78fa7857d14052e698a75f18b7567d8955a07ee5333f8547b988194ebba684bef  Go-Mono-Bold.ttf
-6d8a8ec9a008aa20a6494362c5df7bae63b5813fe48d95b9cdb43deef0c39df5180a3b96a42971912ad8e92c342b5eb43a926d1010273772cf46123979b92bdd  Go-Mono-Italic.ttf
-cbb47b06b68d97297ce740fb9b899d70dd60e6d1fc48dc788014b8c6752bb7ab1edef6c2e0eadcceb5e249803bcf8382c5cceccfbcf73259f3350ef2b31bf0d6  Go-Mono.ttf
-703d4048b76bc0227a5af08f40b15f1e9a83a527da479965d4ac4e07f365ce15ea83ed17552a158ce9e7f7ed1a93b17cb8a15431f299df97705f8d1c74c163a2  Go-Regular.ttf
-6ea3b0af41b5b23dc1075b7f9af43fd16b26ec7fef1c677d031cadae770af071a0a6c9d4a9c33020adbe1a3b1ea3276931600bc02eaa51032fdcc94c63d5e1c2  Go-Smallcaps-Italic.ttf
-2de31002e2faf44262cd5a1db54bbaa0fef1d9bc04e14a1b67f9dee782b84b9340f60d250aab5e65c9a9ba74b0a404572f0959c4623cd0c077dbac5de34da30d  Go-Smallcaps.ttf
-44f453f98c7c148096d8939ca603c801d3cc015c270987772958ec674e14a956bf89c886a5ce8f99ca74fc71ea9864ce3b647b47581a34d36dd4c206ad6ff551  LICENSE
+53120ece0895f362bb5b73005fe8bf2a86c58f9298c7cd327821bb4b59630b64708c8cf2af4c574876db2101cf3a026f8ebd67fa567dc0ddb4681916bd3e770e  Go-Bold-Italic.ttf+41969df76e82aeec85fa3821b1e24955ea993001
+2e6feeac188e3a723a045edac75e83089e1678dfb3af89012e7c00cefe327d978dccf99be4d9bd8b30b110381959bb9b62ffa69ef8d2e051019ab59320d2e72d  Go-Bold.ttf+41969df76e82aeec85fa3821b1e24955ea993001
+3e8295655938331687c57819be21a1da8409055c2580c0f475d66ed2b26eac1e27ea26d23afdce7de245961a836dafe9fa79406d455224a86b633ca58f172319  Go-Italic+41969df76e82aeec85fa3821b1e24955ea993001
+f657110a1e7af1dd55089c8a761784f6f52510058d63ea80faa07fa42e1ea4e7e83b88c79e53c40ef4ebbaf7d180184f1a873cec8b10aacc164c0677e2535913  Go-Medium-Italic.ttf+41969df76e82aeec85fa3821b1e24955ea993001
+dbdbdb681d82ae8751b7c69fda33b103c32725cc256c2bfb7d09976d00865ca63f62259449d4b8ea779913ef6a419a8deac63ea412fe8161e2b536c91dc143ae  Go-Medium.ttf+41969df76e82aeec85fa3821b1e24955ea993001
+3738da6002389d6e9fb1eaeb689b5243d6ec694f960a1450fa2a86d520c0b02a9a687088b55a47f17e552cbb403721c2c4ac047178df827c391c3392d7960573  Go-Mono-Bold-Italic.ttf+41969df76e82aeec85fa3821b1e24955ea993001
+e6c58a79082278f803f973c60127e415260744a937abb6dd5f49626930f2fe1d7ac8a894ac5ad5750c1924bab5d0b61286defca593cbf3585a52aa02e724dee7  Go-Mono-Bold.ttf+41969df76e82aeec85fa3821b1e24955ea993001
+e947af61455d4687482962040b507aefc3c4106a587f04734259a3735b7bf91969a45774719917009a738703879a6de93c3a69ad965836fb4cc9efc80622c94b  Go-Mono-Italic.ttf+41969df76e82aeec85fa3821b1e24955ea993001
+5e905bc75c85ae20753aec954fb20f407a72758bec6095010214d53521286d0b5c3d54e16f0736b215e57f8365d62b126936b306e2f39b4c36bbe647b17fcc23  Go-Mono.ttf+41969df76e82aeec85fa3821b1e24955ea993001
+0a9447789b5a7830d37e288032263f4f30d00d303cb262d5aa520f94bcecb133ea344182d5c0e8b00515aea07e1d9a69efa0278c341efb2346ae88c2eaaf829a  Go-Regular.ttf+41969df76e82aeec85fa3821b1e24955ea993001
+d841a0c627d757612c642c0784530e3ac26792790752ddf35fa4fa205b481413e3896caadf622b6517008c384020a516a39953c44b1353d4999b51b705dc5bd2  Go-Smallcaps-Italic.ttf+41969df76e82aeec85fa3821b1e24955ea993001
+f04745a3c230d6fe682a7a3272896eff35179ff63f0c8528139efc5df2fe1e2e22e4df4967b7114cebdee9357f4842e5e4ca3ed77399de0fa8c43653f498ce2e  Go-Smallcaps.ttf+41969df76e82aeec85fa3821b1e24955ea993001
+eb5149c9b8c39014ed924b77f3ec48502faf0eecce57437770b4a29fde904aec3ec45d59dc4c058637cb346089d750ec47eba1eb2b030363fc5d31b93e365ac4  LICENSE+41969df76e82aeec85fa3821b1e24955ea993001
 "
