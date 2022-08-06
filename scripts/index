@@ -2,18 +2,23 @@
 
 set -e
 
-target_repo="${1:-main}"
-target_arch="${2:-x86_64}" # TODO
+for repo in public/repositories/*/; do
+	target_repo="$(basename "$repo")"
 
-indexables="$(find "public/repositories/$target_repo/$target_arch" -name '*.apk' -printf "%f\n")"
+	for arch in "$repo"*; do
+		target_arch="$(basename "$arch")"
 
-# shellcheck disable=SC2086
-podman container run \
-	--rm \
-	--tty \
-	--interactive \
-	--userns=keep-id \
-	--group-add=abuild \
-	--workdir="/var/my-aports/$target_repo/$target_arch" \
-	--volume="$PWD/public/repositories:/var/my-aports" \
-	aports apk index -o APKINDEX.tar.gz $indexables
+		mkdir --parent "public/repositories/$target_repo/$target_arch"
+		indexables="$(find "public/repositories/$target_repo/$target_arch" -name '*.apk' -printf "%f\n")"
+
+		printf "%s/%s: " "$target_repo" "$target_arch"
+
+		podman container run \
+			--rm \
+			--tty \
+			--interactive \
+			--workdir="/var/my-aports/$target_repo/$target_arch" \
+			--volume="$PWD/public/repositories:/var/my-aports" \
+			"my-aports-$target_arch" apk index -o APKINDEX.tar.gz $indexables
+	done
+done

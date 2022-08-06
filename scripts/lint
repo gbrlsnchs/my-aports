@@ -7,7 +7,6 @@ podman container run \
 	--rm \
 	--tty \
 	--interactive \
-	--userns=keep-id \
 	--workdir="$pkgdir" \
 	--volume="$pkgdir:$pkgdir" \
-	aports apkbuild-lint APKBUILD
+	"my-aports-$(uname --machine)" apkbuild-lint APKBUILD

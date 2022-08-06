@@ -2,14 +2,14 @@
 
 author="$(git config --global user.name)"
 author="$author <$(git config --global user.email)>"
+target_arch="${1:-$(uname --machine)}" # TODO
 
-mkdir --parent keys
-rm --force keys/*
+mkdir --parent "public/keys/$target_arch"
+rm --force public/keys/"$target_arch"/*
 
 podman container run \
 	--rm \
-	--userns=keep-id \
 	--env="PACKAGER='${author}'" \
 	--workdir=/tmp \
-	--volume="${PWD}/public/keys:/tmp/.abuild" \
-	aports abuild-keygen -n
+	--volume="${PWD}/public/keys/$target_arch:/tmp/.abuild" \
+	"my-aports-$target_arch" abuild-keygen -n

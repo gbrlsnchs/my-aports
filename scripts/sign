@@ -2,23 +2,28 @@
 
 set -e
 
-repo="${1:-main}"
-arch="${2:-x86_64}" # TODO
-priv_key="$(find ./public/keys -name '*.rsa' -printf "%f\n")"
+for repo in public/repositories/*/; do
+	target_repo="$(basename "$repo")"
 
-mkdir --parent data
-echo "PACKAGER_PRIVKEY=/tmp/$priv_key" > data/abuild.conf
+	for arch in "$repo"*; do
+		target_arch="$(basename "$arch")"
+		priv_key="$(find "./public/keys/$target_arch" -name '*.rsa' -printf "%f\n")"
 
-podman container run \
-	--rm \
-	--tty \
-	--interactive \
-	--userns=keep-id \
-	--group-add=abuild \
-	--env="REPODEST=/var/my-aports" \
-	--workdir="/var/my-aports/$repo/$arch" \
-	--volume="$PWD/public/repositories:/var/my-aports" \
-	--volume="$PWD/public/keys/$priv_key:/tmp/$priv_key" \
-	--volume="$PWD/public/keys/$priv_key.pub:/tmp/$priv_key.pub" \
-	--volume="$PWD/data/abuild.conf:/etc/abuild.conf" \
-	aports abuild-sign APKINDEX.tar.gz
+		mkdir --parent data
+		echo "PACKAGER_PRIVKEY=/tmp/$priv_key" > data/abuild.conf
+
+		printf "%s/%s: " "$target_repo" "$target_arch"
+
+		podman container run \
+			--rm \
+			--tty \
+			--interactive \
+			--env="REPODEST=/var/my-aports" \
+			--workdir="/var/my-aports/$target_repo/$target_arch" \
+			--volume="$PWD/public/repositories:/var/my-aports" \
+			--volume="$PWD/public/keys/$target_arch/$priv_key:/tmp/$priv_key" \
+			--volume="$PWD/public/keys/$target_arch/$priv_key.pub:/tmp/$priv_key.pub" \
+			--volume="$PWD/data/abuild.conf:/etc/abuild.conf" \
+			"my-aports-$target_arch" abuild-sign APKINDEX.tar.gz
+	done
+done

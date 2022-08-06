@@ -9,9 +9,7 @@ podman container run \
 	--rm \
 	--tty \
 	--interactive \
-	--userns=keep-id \
-	--group-add=abuild \
 	--workdir="$pkgdir" \
 	--volume="${pkgdir}:${pkgdir}" \
 	--volume="${PWD}/cache:/var/cache/distfiles" \
-	aports abuild checksum
+	"my-aports-$(uname --machine)" abuild -fF checksum

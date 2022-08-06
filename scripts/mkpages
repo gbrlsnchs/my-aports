@@ -26,6 +26,10 @@ for dir in public/*; do
 	_gen_html "$dir"
 done
 
+for dir in public/keys/*; do
+	_gen_html "$dir"
+done
+
 for dir in public/repositories/*; do
 	_gen_html "$dir"
 done
