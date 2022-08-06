@@ -5,9 +5,7 @@ These are my custom aports for my private aports repository at https://aports.gs
 ## How to use
 ### Public key
 Download public keys from https://aports.gsr.dev/keys and place them at `/etc/apk/keys/`.
-
-### Repository
-Add the repository to the repository list. I prefer using a tag for it:
+### Repository Add the repository to the repository list. I prefer using a tag for it:
 
 ```console
 echo "@custom https://aports.gsr.dev/repositories/main" >> /etc/apk/repositories
@@ -20,6 +18,18 @@ apk add park@custom
 ```
 
 ### Building packages
+#### Cross-compilation
+It's possible to cross-compile packages with [`qemu-user-static`](https://github.com/multiarch/qemu-user-static).
+
+#### Dependencies
+##### x86_64 only
+- `podman`
+##### Cross-compilation (aarch64)
+- `qemu`
+- `qemu-user-static`
+- `binfmt-support`
+
+#### Steps
 If it's the first time using the repository, build the base container image and then generate a key
 pair:
 ```console
