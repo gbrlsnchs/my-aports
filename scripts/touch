@@ -12,6 +12,7 @@ podman container run \
 	--rm \
 	--tty \
 	--interactive \
+	--userns=keep-id \
 	--workdir="$pkgdir" \
 	--volume="$pkgdir:$pkgdir" \
 	"my-aports-$(uname --machine)" newapkbuild $cmd_args "$(basename "$pkgname")"
