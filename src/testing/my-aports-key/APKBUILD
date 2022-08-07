@@ -1,0 +1,23 @@
+# Contributor: Gabriel Sanches <gabriel@gsr.dev>
+# Maintainer: Gabriel Sanches <gabriel@gsr.dev>
+pkgname=my-aports-key
+pkgver=2.022
+pkgrel=0
+pkgdesc="Public key for https://aports.gsr.dev"
+url="https://aports.gsr.dev/keys/$CARCH"
+arch="noarch"
+license="MIT"
+options="!check"
+source="
+	x86_64.tar
+	aarch64.tar
+	"
+
+package() {
+	install -Dm644 "$srcdir/public/keys/$CARCH"/*rsa.pub -t "$pkgdir"/etc/apk/keys/
+}
+
+sha512sums="
+57f800c6786b8c350dacab7ba33c3e7c2a043f294f05f3705ae8873dba792d8cc8d06dc008e16fc75684a1b4d1f0f056f8c1aecb40d8a0d52537f50f738a672c  x86_64.tar
+e0342d3cda0a86894af01a572891debe74fdb45fe72ff0b9f5c9cc3d8a9573fb60809d1b11d080e4b9b90cc3649095cd178c6a854a960e07f6ee45b469cd13b3  aarch64.tar
+"
