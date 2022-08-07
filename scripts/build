@@ -42,3 +42,20 @@ podman container run \
 	--volume="$PWD/public/keys/$target_arch/$priv_key.pub:/etc/apk/keys/$priv_key.pub" \
 	--volume="$PWD/data/abuild.conf:/etc/abuild.conf" \
 	"my-aports-$target_arch" abuild -fFrc
+
+podman container run \
+	--rm \
+	--tty \
+	--interactive \
+	$user_args \
+	--env="REPODEST=/var/my-aports" \
+	--env="SRCDEST=/var/cache/distfiles" \
+	--workdir="$pkgdir" \
+	--volume="$pkgdir:$pkgdir" \
+	--volume="$PWD/public/repositories:/var/my-aports" \
+	--volume="$PWD/cache/$target_arch:/var/cache/distfiles" \
+	--volume="$PWD/data/repositories:/etc/apk/repositories" \
+	--volume="$PWD/public/keys/$target_arch/$priv_key:/tmp/$priv_key" \
+	--volume="$PWD/public/keys/$target_arch/$priv_key.pub:/etc/apk/keys/$priv_key.pub" \
+	--volume="$PWD/data/abuild.conf:/etc/abuild.conf" \
+	"my-aports-$target_arch" abuild -fFc cleanoldpkg
