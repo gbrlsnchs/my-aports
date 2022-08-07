@@ -1,0 +1,50 @@
+#!/bin/sh
+
+set -e
+
+if [ -z "$1" ]; then
+	exit 1
+fi
+
+target_arch="$1"
+
+shift
+
+priv_key="$(find "./public/keys/$target_arch" -name '*.rsa' -printf "%f\n")"
+
+echo "$(tput bold)* Testing locally$(tput sgr0)"
+cat << EOF > data/repositories
+$(for repo in public/repositories/*/; do echo "/var/my-aports/$(basename "$repo")/"; done)
+https://dl-cdn.alpinelinux.org/alpine/edge/main
+https://dl-cdn.alpinelinux.org/alpine/edge/community
+https://dl-cdn.alpinelinux.org/alpine/edge/testing
+EOF
+
+podman container run \
+	--rm \
+	--tty \
+	--interactive \
+	--volume="$PWD/public/repositories:/var/my-aports" \
+	--volume="$PWD/public/keys/$target_arch/$priv_key.pub:/etc/apk/keys/$priv_key.pub" \
+	--volume="$PWD/data/repositories:/etc/apk/repositories" \
+	"my-aports-$target_arch" apk -vv --update-cache add "$@"
+
+echo "$(tput bold)* Testing remotely$(tput sgr0)"
+cat << EOF > data/repositories
+$(for repo in public/repositories/*/; do echo "https://aports.gsr.dev/repositories/$(basename "$repo")"; done)
+https://dl-cdn.alpinelinux.org/alpine/edge/main
+https://dl-cdn.alpinelinux.org/alpine/edge/community
+https://dl-cdn.alpinelinux.org/alpine/edge/testing
+EOF
+
+mkdir --parent data/keys
+rm --force data/keys/*
+wget --quiet --directory-prefix=data/keys/ "https://aports.gsr.dev/keys/$target_arch/$priv_key.pub"
+
+podman container run \
+	--rm \
+	--tty \
+	--interactive \
+	--volume="$PWD/data/keys/$priv_key.pub:/etc/apk/keys/$priv_key.pub" \
+	--volume="$PWD/data/repositories:/etc/apk/repositories" \
+	"my-aports-$target_arch" apk -vv --update-cache add "$@"
