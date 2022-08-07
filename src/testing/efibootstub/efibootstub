@@ -3,26 +3,23 @@
 set -e
 
 _bold="$(tput bold)"
-_red="$(tput setaf 1)"
+_italic="$(tput sitm)"
+_red="$(tput setaf 9)"
+_yellow="$(tput setaf 11)"
 _reset="$(tput sgr0)"
 
 die() {
 	trap - EXIT
-	echo "${_red}ERROR$_reset: $*"
+	printf "\n%s%sERROR%s: missing fields\n" "$_red" "$_bold" "$_reset"
 	exit 1
 }
 
 preview() {
 	label="$1"
-	value="$2"
+	value="${2:-$_reset$_yellow${_italic}missing}"
 
 	printf "%s:@%s%s%s\n\n" "$label" "$_bold" "$value" "$_reset"
 }
-
-[ -z "$BOOT_ROOT" ] && die "Missing value for BOOT_ROOT"
-[ -z "$BOOT_PARAMS" ] && die "Missing value for BOOT_PARAMS"
-[ -z "$BOOT_DISK" ] && die "Missing value for BOOT_DISK"
-[ -z "$BOOT_PART" ] && die "Missing value for BOOT_PART"
 
 BOOT_UCODE="${BOOT_UCODE:-amd-ucode.img}"
 BOOT_INITRAMFS="${BOOT_INITRAMFS:-initramfs-lts}"
@@ -38,10 +35,16 @@ _preview="$_preview\n$(preview params "$BOOT_PARAMS")"
 _preview="$_preview\n$(preview ucode "$BOOT_UCODE")"
 _preview="$_preview\n$(preview initramfs "$BOOT_INITRAMFS")"
 _preview="$_preview\n$(preview label "$BOOT_LABEL")"
-_preview="$_preview\n$(preview disk+part "$BOOT_DISK$BOOT_PART")"
+_preview="$_preview\n$(preview disk "$BOOT_DISK")"
+_preview="$_preview\n$(preview partition "$BOOT_PART")"
 _preview="$_preview\n$(preview linuz "$BOOT_LINUZ")"
 
 echo "$_preview" | column --separator='@' --table
+
+[ -z "$BOOT_ROOT" ] && die
+[ -z "$BOOT_PARAMS" ] && die
+[ -z "$BOOT_DISK" ] && die
+[ -z "$BOOT_PART" ] && die
 
 printf "\n%sDo you wish to proceed?%s " "$_bold" "$_reset"
 read -r yesno
@@ -56,6 +59,7 @@ if [ "$yesno" != "${yesno#[Yy]}" ]; then
 		--unicode="$params" \
 		--verbose
 else
-	echo "${_red}EFI stubbing aborted!$_reset"
+	echo "${_yellow}EFI stubbing aborted!$_reset"
+	exit 1
 fi
 
