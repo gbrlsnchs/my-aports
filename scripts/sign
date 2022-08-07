@@ -5,7 +5,7 @@ set -e
 for repo in public/repositories/*/; do
 	target_repo="$(basename "$repo")"
 
-	for arch in "$repo"*; do
+	for arch in "$repo"*/; do
 		target_arch="$(basename "$arch")"
 		priv_key="$(find "./public/keys/$target_arch" -name '*.rsa' -printf "%f\n")"
 
