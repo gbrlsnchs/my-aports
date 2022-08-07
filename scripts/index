@@ -5,7 +5,7 @@ set -e
 for repo in public/repositories/*/; do
 	target_repo="$(basename "$repo")"
 
-	for arch in "$repo"*; do
+	for arch in "$repo"*/; do
 		target_arch="$(basename "$arch")"
 
 		mkdir --parent "public/repositories/$target_repo/$target_arch"
