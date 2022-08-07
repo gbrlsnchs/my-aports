@@ -8,6 +8,7 @@ pkgdesc="Typeface designed for Go source code"
 url="https://blog.golang.org/go-fonts"
 arch="noarch"
 license="BSD-3-Clause"
+depends="fontconfig"
 options="!nocheck"
 subpackages="
 	$pkgname-doc
