@@ -19,6 +19,6 @@ for repo in public/repositories/*/; do
 			--interactive \
 			--workdir="/var/my-aports/$target_repo/$target_arch" \
 			--volume="$PWD/public/repositories:/var/my-aports" \
-			"my-aports-$target_arch" apk index -o APKINDEX.tar.gz $indexables
+			"my-aports-$target_arch" apk index --rewrite-arch="$target_arch" -o APKINDEX.tar.gz $indexables
 	done
 done
