@@ -1,0 +1,26 @@
+# Contributor: Gabriel Sanches <gabriel@gsr.dev>
+# Maintainer: Gabriel Sanches <gabriel@gsr.dev>
+pkgname=efibootstub
+pkgver=2.022
+pkgrel=0
+pkgdesc="Helper script for generating EFI Boot stubs"
+url="https://github.com/gbrlsnchs/my-aports"
+arch="noarch"
+license="MIT"
+depends="efibootmgr"
+subpackages="$pkgname-doc"
+options="!check"
+source="
+	efibootstub
+	LICENSE
+	"
+
+package() {
+	install -Dm755 efibootstub -t "$pkgdir/usr/bin/"
+	install -Dm755 LICENSE -t "$pkgdir/usr/share/licenses/efibootstub/"
+}
+
+sha512sums="
+aa9c80447b0886326bfba4568547ea41aea2fb61b77862054c84a2c2c38f9044834f49ca64aa57dbb8f41d5863bd57eb49822ed327e69725dc0e1b47cfaff693  efibootstub
+eabef4b5d0a3c52e49405e8c2a521c3d18a59b65e9f46d0c2bebdef2fd10ff58ded59e88e36d69ed3d63c40e0e2c507e554a7be7a51275a0aaec9e5c1caec136  LICENSE
+"

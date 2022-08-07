@@ -1,0 +1,61 @@
+#!/bin/sh
+
+set -e
+
+_bold="$(tput bold)"
+_red="$(tput setaf 1)"
+_reset="$(tput sgr0)"
+
+die() {
+	trap - EXIT
+	echo "${_red}ERROR$_reset: $*"
+	exit 1
+}
+
+preview() {
+	label="$1"
+	value="$2"
+
+	printf "%s:@%s%s%s\n\n" "$label" "$_bold" "$value" "$_reset"
+}
+
+[ -z "$BOOT_ROOT" ] && die "Missing value for BOOT_ROOT"
+[ -z "$BOOT_PARAMS" ] && die "Missing value for BOOT_PARAMS"
+[ -z "$BOOT_DISK" ] && die "Missing value for BOOT_DISK"
+[ -z "$BOOT_PART" ] && die "Missing value for BOOT_PART"
+
+BOOT_UCODE="${BOOT_UCODE:-amd-ucode.img}"
+BOOT_INITRAMFS="${BOOT_INITRAMFS:-initramfs-lts}"
+BOOT_LINUZ="${BOOT_LINUZ:-vmlinuz-lts}"
+BOOT_LABEL="${BOOT_LABEL:-Alpine Linux}"
+
+params="root=$BOOT_ROOT rw $BOOT_PARAMS \
+	initrd=\\$BOOT_UCODE \
+	initrd=\\$BOOT_INITRAMFS"
+
+_preview="$(preview root "$BOOT_ROOT")"
+_preview="$_preview\n$(preview params "$BOOT_PARAMS")"
+_preview="$_preview\n$(preview ucode "$BOOT_UCODE")"
+_preview="$_preview\n$(preview initramfs "$BOOT_INITRAMFS")"
+_preview="$_preview\n$(preview label "$BOOT_LABEL")"
+_preview="$_preview\n$(preview disk+part "$BOOT_DISK$BOOT_PART")"
+_preview="$_preview\n$(preview linuz "$BOOT_LINUZ")"
+
+echo "$_preview" | column --separator='@' --table
+
+printf "\n%sDo you wish to proceed?%s " "$_bold" "$_reset"
+read -r yesno
+
+if [ "$yesno" != "${yesno#[Yy]}" ]; then
+	efibootmgr \
+		--create \
+		--label "$BOOT_LABEL" \
+		--disk "$BOOT_DISK" \
+		--part "$BOOT_PART" \
+		--loader="\\$BOOT_LINUZ" \
+		--unicode="$params" \
+		--verbose
+else
+	echo "${_red}EFI stubbing aborted!$_reset"
+fi
+
