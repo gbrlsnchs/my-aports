@@ -13,3 +13,9 @@ podman container run \
 	--workdir=/tmp \
 	--volume="${PWD}/public/keys/$target_arch:/tmp/.abuild" \
 	"my-aports-$target_arch" abuild-keygen -n
+
+priv_key="$(find "./public/keys/$target_arch" -name '*.rsa' -printf "%f\n")"
+
+find ./src -maxdepth 2 -type d -name my-aports-key | while read -r dir; do
+	tar -cvf "$dir/$target_arch.tar" "public/keys/$priv_key.pub"
+done
