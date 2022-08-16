@@ -2,11 +2,12 @@
 # Maintainer: Jakub Jirutka <jakub@jirutka.cz>
 pkgname=luarocks
 pkgver=3.9.1
-pkgrel=0
+pkgrel=1
 pkgdesc="Deployment and management system for Lua modules"
 url="https://luarocks.org/"
 arch="noarch"
 license="MIT"
+depends="lua5.4"
 options="!check"
 source="https://luarocks.org/releases/$pkgname-$pkgver.tar.gz
 	luarocks.bash
