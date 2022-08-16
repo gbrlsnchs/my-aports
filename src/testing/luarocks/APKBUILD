@@ -2,7 +2,7 @@
 # Maintainer: Jakub Jirutka <jakub@jirutka.cz>
 pkgname=luarocks
 pkgver=3.9.1
-pkgrel=2
+pkgrel=3
 pkgdesc="Deployment and management system for Lua modules"
 url="https://luarocks.org/"
 arch="noarch"
@@ -40,7 +40,7 @@ build() {
 }
 
 package() {
-	depends="$pkgname-5.4"
+	depends="${pkgname}5.4"
 
 	mkdir -p "$pkgdir"
 	make DESTDIR="$pkgdir" install
