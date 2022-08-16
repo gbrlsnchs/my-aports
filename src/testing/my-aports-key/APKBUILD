@@ -2,7 +2,7 @@
 # Maintainer: Gabriel Sanches <gabriel@gsr.dev>
 pkgname=my-aports-key
 pkgver=2.022
-pkgrel=0
+pkgrel=1
 pkgdesc="Public key for https://aports.gsr.dev"
 url="https://aports.gsr.dev/keys/$CARCH"
 arch="noarch"
@@ -18,6 +18,6 @@ package() {
 }
 
 sha512sums="
-57f800c6786b8c350dacab7ba33c3e7c2a043f294f05f3705ae8873dba792d8cc8d06dc008e16fc75684a1b4d1f0f056f8c1aecb40d8a0d52537f50f738a672c  x86_64.tar
-e0342d3cda0a86894af01a572891debe74fdb45fe72ff0b9f5c9cc3d8a9573fb60809d1b11d080e4b9b90cc3649095cd178c6a854a960e07f6ee45b469cd13b3  aarch64.tar
+733c3b7ec16df480d9d8cce526e11243f8d6acdb26249409d0b2a400902343fd8447233fe3e663da1137b2dd484ce279f2711f005bd35af2ab825e88829cc5c5  x86_64.tar
+973c7f4838b4647353368491e4dc389a37eee1ae34b2465364fa911e1b0652e958b84a696150beae1dea756c6db63f5afdaac26be9f7b912fc6d5cc705951696  aarch64.tar
 "
