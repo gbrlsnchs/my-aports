@@ -1,0 +1,73 @@
+# Contributor: Carlo Landmeter <clandmeter@alpinelinux.org>
+# Maintainer: Jakub Jirutka <jakub@jirutka.cz>
+pkgname=luarocks
+pkgver=3.9.1
+pkgrel=0
+pkgdesc="Deployment and management system for Lua modules"
+url="https://luarocks.org/"
+arch="noarch"
+license="MIT"
+options="!check"
+source="https://luarocks.org/releases/$pkgname-$pkgver.tar.gz
+	luarocks.bash
+	luarocks.zsh
+	luarocks.fish
+	luarocks-admin.bash
+	luarocks-admin.zsh
+	luarocks-admin.fish
+	config.lua"
+
+_lua_versions="5.1 5.2 5.3 5.4"
+for _v in $_lua_versions; do
+	makedepends="$makedepends lua$_v-dev"
+	subpackages="$subpackages $pkgname${_v}:_subpackage"
+	triggers="$triggers $pkgname$_v.trigger=/usr/lib/luarocks/rocks-$_v:/usr/lib/luarocks/rocks-common"
+done
+subpackages="
+	$subpackages
+	$pkgname-doc
+	$pkgname-bash-completion
+	$pkgname-zsh-completion
+	$pkgname-fish-completion"
+
+build() {
+	./configure --prefix=/usr
+	make ./build/luarocks ./build/luarocks-admin ./build/config-5.4.lua
+	make LUA_VERSION=5.1 LUA_INTERPRETER=lua5.1 LUA_INCDIR=/usr/include/lua5.1 ./build/config-5.1.lua
+	make LUA_VERSION=5.2 LUA_INTERPRETER=lua5.2 LUA_INCDIR=/usr/include/lua5.2 ./build/config-5.2.lua
+	make LUA_VERSION=5.3 LUA_INTERPRETER=lua5.3 LUA_INCDIR=/usr/include/lua5.3 ./build/config-5.3.lua
+}
+
+package() {
+	mkdir -p "$pkgdir"
+	make DESTDIR="$pkgdir" install
+
+	local bin; for bin in luarocks luarocks-admin; do
+		install -Dm644 "$srcdir/$bin.bash" "$pkgdir/usr/share/bash-completion/completions/$bin"
+		install -Dm644 "$srcdir/$bin.zsh" "$pkgdir/usr/share/zsh/site-functions/_$bin"
+		install -Dm644 "$srcdir/$bin.fish" -t "$pkgdir/usr/share/fish/completions/"
+	done
+
+	install -Dm644 COPYING -t "$pkgdir/usr/share/licenses/luarocks/"
+}
+
+_subpackage() {
+	local lver="${subpkgname#$pkgname}"
+	pkgdesc="Deployment and management system for Lua $lver modules"
+	install_if="lua$lver $pkgname=$pkgver-r$pkgrel"
+	depends="$depends lua$lver"
+
+	cd "$builddir"
+	make DESTDIR="$subpkgdir" LUA_VERSION="$lver" install-config
+}
+
+sha512sums="
+2dfc1326118c2868b05a17acc5fe8d2c07503ef2bb3f2560a3d7ce385b85893d593bacfab7086c57923f042d7e7cfd09a0a9795afc473a73edbba0a44d23ed60  luarocks-3.9.1.tar.gz
+b34ea6fde901f531f841784c7f75dec3f72ac055333fd1dbafbb2da5f5963b2dd4b89e28d2099e57d201877d0b00ae44bd2aced92ab41ef7a775c8f452985d3a  luarocks.bash
+d905e898643a45290a02f61f0d71dd11aaa75b91983cc193db86cc99ecb1fe535f403b22fdcc8f3d3f1991a7e415eea22ff46fe898b5fb778f2c07a0a6e40cfd  luarocks.zsh
+57378406df3a0454ef46b3b97aaf92bbf2f597ed8216a33757e351efbb151f1fc44ef0ad33f24031eb62f70d3737bf02fb72c3682ea1d533aa9495ca11566ed5  luarocks.fish
+b43ccd818c3022b63690b6d060940bbbfd2775b1c174b9e99c8162ea0e746b276b4414c2489156e6bb9eae9ce41d83481022a5a757ea94b62074a6c8c57e9c5a  luarocks-admin.bash
+111bd0269b3dcac54921e9d2bcbbb0ed2da7c3cd6d214ad4de8465b164884b0eac63de3f75e79358981fb792e4a75da8e7d8c3e070b0d1156936acc006b1795b  luarocks-admin.zsh
+6b52bd6f446586c3e7d5dbe1ba870e5e37c5bb9cdd5e5878959fa1c151b5a43d8b37c1dc43de46ff2c70c1f57c0429a85c382f53390179609a2880e5aa089497  luarocks-admin.fish
+1f75705af3b1ef57386234195a5d496d554c95473e5b0c0a3319e3c0f905519397b92603c5596d363818df7d94f886b898ba12a3880d3e982d1c63b74c50febe  config.lua
+"
