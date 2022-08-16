@@ -34,6 +34,7 @@ podman container run \
 	$user_args \
 	--env="REPODEST=/var/my-aports" \
 	--env="SRCDEST=/var/cache/distfiles" \
+	--env="srcdir=$pkgdir/src/$target_arch" \
 	--env="pkgbasedir=$pkgdir/pkg/$target_arch" \
 	--workdir="$pkgdir" \
 	--volume="$pkgdir:$pkgdir" \
@@ -49,9 +50,11 @@ podman container run \
 	--rm \
 	--tty \
 	--interactive \
-	$user_args \
+	--userns=keep-id \
+	--group-add=abuild \
 	--env="REPODEST=/var/my-aports" \
 	--env="SRCDEST=/var/cache/distfiles" \
+	--env="srcdir=$pkgdir/src/$target_arch" \
 	--env="pkgbasedir=$pkgdir/pkg/$target_arch" \
 	--workdir="$pkgdir" \
 	--volume="$pkgdir:$pkgdir" \
