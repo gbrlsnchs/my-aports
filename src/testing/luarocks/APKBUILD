@@ -9,7 +9,7 @@ arch="noarch"
 license="MIT"
 depends="lua5.4"
 options="!check"
-source="https://luarocks.org/releases/$pkgname-$pkgver.tar.gz
+source="https://luarocks.org/releases/luarocks-$pkgver.tar.gz
 	luarocks.bash
 	luarocks.zsh
 	luarocks.fish
