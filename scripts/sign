@@ -7,7 +7,8 @@ for repo in public/repositories/*/; do
 
 	for arch in "$repo"*/; do
 		target_arch="$(basename "$arch")"
-		priv_key="$(find "./public/keys/$target_arch" -name '*.rsa' -printf "%f\n")"
+		priv_key_path="$(find "public/keys/$target_arch" -name '*.rsa' -print)"
+		priv_key="$(basename "$priv_key_path")"
 
 		mkdir --parent data
 		echo "PACKAGER_PRIVKEY=/tmp/$priv_key" > data/abuild.conf
@@ -21,8 +22,8 @@ for repo in public/repositories/*/; do
 			--env="REPODEST=/var/my-aports" \
 			--workdir="/var/my-aports/$target_repo/$target_arch" \
 			--volume="$PWD/public/repositories:/var/my-aports" \
-			--volume="$PWD/public/keys/$target_arch/$priv_key:/tmp/$priv_key" \
-			--volume="$PWD/public/keys/$target_arch/$priv_key.pub:/tmp/$priv_key.pub" \
+			--volume="$PWD/$priv_key_path:/tmp/$priv_key" \
+			--volume="$PWD/$priv_key_path.pub:/tmp/$priv_key.pub" \
 			--volume="$PWD/data/abuild.conf:/etc/abuild.conf" \
 			"my-aports-$target_arch" abuild-sign APKINDEX.tar.gz
 	done

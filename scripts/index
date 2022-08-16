@@ -9,7 +9,7 @@ for repo in public/repositories/*/; do
 		target_arch="$(basename "$arch")"
 
 		mkdir --parent "public/repositories/$target_repo/$target_arch"
-		indexables="$(find "public/repositories/$target_repo/$target_arch" -name '*.apk' -printf "%f\n")"
+		indexables="$(find "public/repositories/$target_repo/$target_arch" -name '*.apk' -exec basename {} \;)"
 
 		printf "%s/%s: " "$target_repo" "$target_arch"
 
