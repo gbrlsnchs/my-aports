@@ -1,0 +1,1276 @@
+From 0946958b7327d53bfbf9bbf87e03326bea3d8fa2 Mon Sep 17 00:00:00 2001
+From: smolck <46855713+smolck@users.noreply.github.com>
+Date: Fri, 12 Mar 2021 09:49:26 -0600
+Subject: [PATCH] feat(lsp): initial semantic tokens support
+
+Co-authored-by: Stephan Seitz <stephan.seitz@fau.de>
+Co-authored-by: smolck <46855713+smolck@users.noreply.github.com>
+---
+ runtime/doc/lsp.txt                           |  54 ++
+ runtime/lua/vim/lsp.lua                       |   1 +
+ runtime/lua/vim/lsp/buf.lua                   |  10 +
+ runtime/lua/vim/lsp/handlers.lua              |  10 +
+ runtime/lua/vim/lsp/protocol.lua              |  50 ++
+ runtime/lua/vim/lsp/semantic_tokens.lua       | 147 +++++
+ scripts/gen_vimdoc.py                         |   1 +
+ test/functional/fixtures/fake-lsp-server.lua  |  21 +
+ .../functional/plugin/lsp/fake_lsp_server.lua | 122 ++++
+ .../plugin/lsp/semantic_tokens_spec.lua       | 564 ++++++++++++++++++
+ test/functional/plugin/lsp_spec.lua           | 132 +---
+ 11 files changed, 995 insertions(+), 117 deletions(-)
+ create mode 100644 runtime/lua/vim/lsp/semantic_tokens.lua
+ create mode 100644 test/functional/plugin/lsp/fake_lsp_server.lua
+ create mode 100644 test/functional/plugin/lsp/semantic_tokens_spec.lua
+
+diff --git a/runtime/doc/lsp.txt b/runtime/doc/lsp.txt
+index 21026f2ef871..c89cb909c357 100644
+--- a/runtime/doc/lsp.txt
++++ b/runtime/doc/lsp.txt
+@@ -1283,6 +1283,11 @@ rename({new_name}, {options})                           *vim.lsp.buf.rename()*
+                     • name (string|nil): Restrict clients used for rename to
+                       ones where client.name matches this field.
+ 
++semantic_tokens_full()                    *vim.lsp.buf.semantic_tokens_full()*
++    Requests semantic tokens from the server. No highlighting is performed.
++    See |vim.lsp.semantic_tokens.on_full()| on how to register callbacks to
++    perform highlighting.
++
+ server_ready()                                    *vim.lsp.buf.server_ready()*
+     Checks whether the language servers attached to the current buffer are
+     ready.
+@@ -1402,6 +1407,55 @@ save({lenses}, {bufnr}, {client_id})                 *vim.lsp.codelens.save()*
+         {client_id}  (number)
+ 
+ 
++==============================================================================
++Lua module: vim.lsp.semantic_tokens                      *lsp-semantic_tokens*
++
++                                           *vim.lsp.semantic_tokens.on_full()*
++on_full({err}, {response}, {ctx}, {config})
++    |lsp-handler| for the method `textDocument/semanticTokens/full`
++
++    This function can be configured with |vim.lsp.with()| with the following
++    options for `config`
++
++    `on_token`: A function with signature `function(ctx, token)` that is
++    called whenever a semantic token is received from the server from context
++    `ctx` (see |lsp-handler| for the definition of `ctx`). This can be used
++    for highlighting the tokens. `token` is a table:
++>
++    {
++          line             -- line number 0-based
++          start_char       -- start character 0-based (in Unicode characters, not in byte offset as
++                           -- required by most of Neovim's API. Conversion might be needed for further
++                           -- processing!)
++          length           -- length in characters of this token
++          type             -- token type as string (see https://code.visualstudio.com/api/language-extensions/semantic-highlight-guide#semantic-token-classification)
++          modifiers        -- token modifier as string (see https://code.visualstudio.com/api/language-extensions/semantic-highlight-guide#semantic-token-classification)
++          offset_encoding  -- offset encoding used by the language server (see |lsp-sync|)
++    }
++<
++
++    `on_invalidate_range`: A function with signature `function(ctx,
++    line_start, line_end)` called whenever tokens in a specific line range
++    (`line_start`, `line_end`) should be considered invalidated (see
++    |lsp-handler| for the definition of `ctx`). `line_end` can be -1 to
++    indicate invalidation until the end of the buffer.
++
++                                        *vim.lsp.semantic_tokens.on_refresh()*
++on_refresh({err}, {_}, {ctx}, {_})
++    |lsp-handler| for the method `textDocument/semanticTokens/refresh`
++
++refresh({bufnr})                           *vim.lsp.semantic_tokens.refresh()*
++    Refresh the semantic tokens for the current buffer
++
++    It is recommended to trigger this using an autocmd or via keymap.
++>
++    autocmd BufEnter,CursorHold,InsertLeave <buffer> lua require 'vim.lsp.semantic_tokens'.refresh(vim.api.nvim_get_current_buf())
++<
++
++    Parameters: ~
++        {bufnr}  number
++
++
+ ==============================================================================
+ Lua module: vim.lsp.handlers                                    *lsp-handlers*
+ 
+diff --git a/runtime/lua/vim/lsp.lua b/runtime/lua/vim/lsp.lua
+index 8d4f388e23f4..e969b7989e6a 100644
+--- a/runtime/lua/vim/lsp.lua
++++ b/runtime/lua/vim/lsp.lua
+@@ -57,6 +57,7 @@ lsp._request_name_to_capability = {
+   ['textDocument/formatting'] = { 'documentFormattingProvider' },
+   ['textDocument/completion'] = { 'completionProvider' },
+   ['textDocument/documentHighlight'] = { 'documentHighlightProvider' },
++  ['textDocument/semanticTokens/full'] = { 'semanticTokensProvider' },
+ }
+ 
+ -- TODO improve handling of scratch buffers with LSP attached.
+diff --git a/runtime/lua/vim/lsp/buf.lua b/runtime/lua/vim/lsp/buf.lua
+index 63f4688d94bf..8e8fddefefe1 100644
+--- a/runtime/lua/vim/lsp/buf.lua
++++ b/runtime/lua/vim/lsp/buf.lua
+@@ -28,6 +28,16 @@ local function request(method, params, handler)
+   return vim.lsp.buf_request(0, method, params, handler)
+ end
+ 
++--- Requests semantic tokens from the server.
++--- No highlighting is performed. See |vim.lsp.semantic_tokens.on_full()| on how to
++--- register callbacks to perform highlighting.
++---
++function M.semantic_tokens_full()
++  local params = { textDocument = util.make_text_document_params() }
++  require('vim.lsp.semantic_tokens')._save_tick(vim.api.nvim_get_current_buf())
++  return request('textDocument/semanticTokens/full', params)
++end
++
+ --- Checks whether the language servers attached to the current buffer are
+ --- ready.
+ ---
+diff --git a/runtime/lua/vim/lsp/handlers.lua b/runtime/lua/vim/lsp/handlers.lua
+index 624436bc9b6d..d18cdb389e19 100644
+--- a/runtime/lua/vim/lsp/handlers.lua
++++ b/runtime/lua/vim/lsp/handlers.lua
+@@ -16,6 +16,16 @@ local function err_message(...)
+   api.nvim_command('redraw')
+ end
+ 
++--see: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocument_semanticTokens
++M['textDocument/semanticTokens/full'] = function(err, result, ctx, config)
++  return require('vim.lsp.semantic_tokens').on_full(err, result, ctx, config)
++end
++
++--see: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#semanticTokens_refreshRequest
++M['workspace/semanticTokens/refresh'] = function(err, result, ctx, config)
++  return require('vim.lsp.semantic_tokens').on_refresh(err, result, ctx, config)
++end
++
+ --see: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#workspace_executeCommand
+ M['workspace/executeCommand'] = function(_, _, _, _)
+   -- Error handling is done implicitly by wrapping all handlers; see end of this file
+diff --git a/runtime/lua/vim/lsp/protocol.lua b/runtime/lua/vim/lsp/protocol.lua
+index 27da60b4aeb6..aa459e8aab1b 100644
+--- a/runtime/lua/vim/lsp/protocol.lua
++++ b/runtime/lua/vim/lsp/protocol.lua
+@@ -619,6 +619,55 @@ export interface WorkspaceClientCapabilities {
+ function protocol.make_client_capabilities()
+   return {
+     textDocument = {
++      semanticTokens = {
++        dynamicRegistration = false,
++        tokenTypes = {
++          'namespace',
++          'type',
++          'class',
++          'enum',
++          'interface',
++          'struct',
++          'typeParameter',
++          'parameter',
++          'variable',
++          'property',
++          'enumMember',
++          'event',
++          'function',
++          'method',
++          'macro',
++          'keyword',
++          'modifier',
++          'comment',
++          'string',
++          'number',
++          'regexp',
++          'operator',
++        },
++        tokenModifiers = {
++          'declaration',
++          'definition',
++          'readonly',
++          'static',
++          'deprecated',
++          'abstract',
++          'async',
++          'modification',
++          'documentation',
++          'defaultLibrary',
++        },
++        formats = { 'relative' },
++        requests = {
++          -- TODO(smolck): Add support for this
++          -- range = true;
++          full = { delta = false },
++        },
++
++        overlappingTokenSupport = true,
++        -- TODO(theHamsta): Add support for this
++        multilineTokenSupport = false,
++      },
+       synchronization = {
+         dynamicRegistration = false,
+ 
+@@ -885,6 +934,7 @@ function protocol._resolve_capabilities_compat(server_capabilities)
+     or false
+   general_properties.call_hierarchy = server_capabilities.callHierarchyProvider or false
+   general_properties.execute_command = server_capabilities.executeCommandProvider ~= nil
++  general_properties.semantic_tokens_full = server_capabilities.semanticTokensProvider ~= nil
+ 
+   if server_capabilities.renameProvider == nil then
+     general_properties.rename = false
+diff --git a/runtime/lua/vim/lsp/semantic_tokens.lua b/runtime/lua/vim/lsp/semantic_tokens.lua
+new file mode 100644
+index 000000000000..cf96098a3273
+--- /dev/null
++++ b/runtime/lua/vim/lsp/semantic_tokens.lua
+@@ -0,0 +1,147 @@
++local M = {}
++
++local last_tick = {}
++local active_requests = {}
++
++---@private
++local function get_bit(n, k)
++  --todo(theHamsta): remove once `bit` module is available for non-LuaJIT
++  if _G.bit then
++    return _G.bit.band(_G.bit.rshift(n, k), 1)
++  else
++    return math.floor((n / math.pow(2, k)) % 2)
++  end
++end
++
++---@private
++local function modifiers_from_number(x, modifiers_table)
++  local modifiers = {}
++  for i = 0, #modifiers_table - 1 do
++    local bit = get_bit(x, i)
++    if bit == 1 then
++      table.insert(modifiers, 1, modifiers_table[i + 1])
++    end
++  end
++
++  return modifiers
++end
++
++--- |lsp-handler| for the method `textDocument/semanticTokens/full`
++---
++--- This function can be configured with |vim.lsp.with()| with the following options for `config`
++---
++--- `on_token`: A function with signature `function(ctx, token)` that is called
++---             whenever a semantic token is received from the server from context `ctx`
++---             (see |lsp-handler| for the definition of `ctx`). This can be used for highlighting the tokens.
++---             `token` is a table:
++---
++--- <pre>
++---   {
++---         line             -- line number 0-based
++---         start_char       -- start character 0-based (in Unicode characters, not in byte offset as
++---                          -- required by most of Neovim's API. Conversion might be needed for further
++---                          -- processing!)
++---         length           -- length in characters of this token
++---         type             -- token type as string (see https://code.visualstudio.com/api/language-extensions/semantic-highlight-guide#semantic-token-classification)
++---         modifiers        -- token modifier as string (see https://code.visualstudio.com/api/language-extensions/semantic-highlight-guide#semantic-token-classification)
++---         offset_encoding  -- offset encoding used by the language server (see |lsp-sync|)
++---   }
++--- </pre>
++---
++--- `on_invalidate_range`: A function with signature `function(ctx, line_start, line_end)` called whenever tokens
++---                        in a specific line range (`line_start`, `line_end`) should be considered invalidated
++---                        (see |lsp-handler| for the definition of `ctx`). `line_end` can be -1 to
++---                        indicate invalidation until the end of the buffer.
++function M.on_full(err, response, ctx, config)
++  active_requests[ctx.bufnr] = false
++  local client = vim.lsp.get_client_by_id(ctx.client_id)
++  if not client then
++    return
++  end
++  if config and config.on_invalidate_range then
++    config.on_invalidate_range(ctx, 0, -1)
++  end
++  -- if tick has changed our response is outdated!
++  -- FIXME: this is should be done properly here and in the codelens implementation. Handlers should
++  -- not be responsible of checking whether their responses are still valid.
++  if
++    err
++    or not response
++    or not config.on_token
++    or last_tick[ctx.bufnr] ~= vim.api.nvim_buf_get_changedtick(ctx.bufnr)
++  then
++    return
++  end
++  local legend = client.server_capabilities.semanticTokensProvider.legend
++  local token_types = legend.tokenTypes
++  local token_modifiers = legend.tokenModifiers
++  local data = response.data
++
++  local line
++  local start_char = 0
++  for i = 1, #data, 5 do
++    local delta_line = data[i]
++    line = line and line + delta_line or delta_line
++    local delta_start = data[i + 1]
++    start_char = delta_line == 0 and start_char + delta_start or delta_start
++
++    -- data[i+3] +1 because Lua tables are 1-indexed
++    local token_type = token_types[data[i + 3] + 1]
++    local modifiers = modifiers_from_number(data[i + 4], token_modifiers)
++
++    local token = {
++      line = line,
++      start_char = start_char,
++      length = data[i + 2],
++      type = token_type,
++      modifiers = modifiers,
++      offset_encoding = client.offset_encoding,
++    }
++
++    if token_type and config and config.on_token then
++      config.on_token(ctx, token)
++    end
++  end
++end
++
++--- |lsp-handler| for the method `textDocument/semanticTokens/refresh`
++---
++function M.on_refresh(err, _, ctx, _)
++  if not err then
++    for _, bufnr in ipairs(vim.lsp.get_buffers_by_client_id(ctx.client_id)) do
++      M.refresh(bufnr)
++    end
++  end
++  return vim.NIL
++end
++
++---@private
++function M._save_tick(bufnr)
++  last_tick[bufnr] = vim.api.nvim_buf_get_changedtick(bufnr)
++  active_requests[bufnr] = true
++end
++
++--- Refresh the semantic tokens for the current buffer
++---
++--- It is recommended to trigger this using an autocmd or via keymap.
++---
++--- <pre>
++---   autocmd BufEnter,CursorHold,InsertLeave <buffer> lua require 'vim.lsp.semantic_tokens'.refresh(vim.api.nvim_get_current_buf())
++--- </pre>
++---
++--- @param bufnr number
++function M.refresh(bufnr)
++  vim.validate({ bufnr = { bufnr, 'number' } })
++  if bufnr == 0 then
++    bufnr = vim.api.nvim_get_current_buf()
++  end
++  if not active_requests[bufnr] then
++    local params = { textDocument = { uri = vim.uri_from_bufnr(bufnr) } }
++    if not last_tick[bufnr] or last_tick[bufnr] < vim.api.nvim_buf_get_changedtick(bufnr) then
++      M._save_tick(bufnr)
++      vim.lsp.buf_request(bufnr, 'textDocument/semanticTokens/full', params)
++    end
++  end
++end
++
++return M
+diff --git a/scripts/gen_vimdoc.py b/scripts/gen_vimdoc.py
+index bca3dd816f23..f34bc4ed4d2c 100755
+--- a/scripts/gen_vimdoc.py
++++ b/scripts/gen_vimdoc.py
+@@ -187,6 +187,7 @@
+             'diagnostic.lua',
+             'codelens.lua',
+             'tagfunc.lua',
++            'semantic_tokens.lua',
+             'handlers.lua',
+             'util.lua',
+             'log.lua',
+diff --git a/test/functional/fixtures/fake-lsp-server.lua b/test/functional/fixtures/fake-lsp-server.lua
+index aa47198f7a7b..878d924d11c7 100644
+--- a/test/functional/fixtures/fake-lsp-server.lua
++++ b/test/functional/fixtures/fake-lsp-server.lua
+@@ -927,6 +927,27 @@ function tests.basic_formatting()
+   }
+ end
+ 
++function tests.semantic_tokens_full()
++  skeleton {
++    on_init = function()
++      return {
++        capabilities = {
++          semanticTokensProvider = {
++            legend = {}
++          }
++        }
++      }
++    end;
++    body = function()
++      notify('start')
++      expect_request('textDocument/semanticTokens/full', function()
++        return nil, { resultId = 1, data = {} }
++      end)
++      notify('shutdown')
++    end;
++  }
++end
++
+ -- Tests will be indexed by TEST_NAME
+ 
+ local kill_timer = vim.loop.new_timer()
+diff --git a/test/functional/plugin/lsp/fake_lsp_server.lua b/test/functional/plugin/lsp/fake_lsp_server.lua
+new file mode 100644
+index 000000000000..84d75902aea5
+--- /dev/null
++++ b/test/functional/plugin/lsp/fake_lsp_server.lua
+@@ -0,0 +1,122 @@
++-- luacheck: push ignore 113
++local helpers = require('test.functional.helpers')(after_each)
++-- luacheck: pop
++local clear = helpers.clear
++
++local function clear_notrace()
++  -- problem: here be dragons
++  -- solution: don't look for dragons to closely
++  clear {env={
++    NVIM_LUA_NOTRACK="1";
++    VIMRUNTIME=os.getenv"VIMRUNTIME";
++  }}
++end
++
++local exec_lua = helpers.exec_lua
++local NIL = helpers.NIL
++
++-- Use these to get access to a coroutine so that I can run async tests and use
++-- yield.
++local run, stop = helpers.run, helpers.stop
++local M = {}
++
++M.code = 'test/functional/fixtures/fake-lsp-server.lua'
++M.logfile = 'Xtest-fake-lsp.log'
++
++function M.setup(test_name, timeout_ms, options, settings)
++  exec_lua([=[
++    lsp = require('vim.lsp')
++    local test_name, fixture_filename, logfile, timeout, options, settings = ...
++    TEST_RPC_CLIENT_ID = lsp.start_client {
++      cmd_env = {
++        NVIM_LOG_FILE = logfile;
++        NVIM_LUA_NOTRACK = "1";
++      };
++      cmd = {
++        vim.v.progpath, '-Es', '-u', 'NONE', '--headless',
++        "-c", string.format("lua TEST_NAME = %q", test_name),
++        "-c", string.format("lua TIMEOUT = %d", timeout),
++        "-c", "luafile "..fixture_filename,
++      };
++      handlers = setmetatable({}, {
++        __index = function(t, method)
++          return function(...)
++            return vim.rpcrequest(1, 'handler', ...)
++          end
++        end;
++      });
++      workspace_folders = {{
++          uri = 'file://' .. vim.loop.cwd(),
++          name = 'test_folder',
++      }};
++      on_init = function(client, result)
++        TEST_RPC_CLIENT = client
++        vim.rpcrequest(1, "init", result)
++      end;
++      flags = {
++        allow_incremental_sync = options.allow_incremental_sync or false;
++        debounce_text_changes = options.debounce_text_changes or 0;
++      };
++      settings = settings;
++      on_exit = function(...)
++        vim.rpcnotify(1, "exit", ...)
++      end;
++    }
++  ]=], test_name, M.code, M.logfile, timeout_ms or 1e3, options or {}, settings or {})
++end
++
++function M.test(config)
++  if config.test_name then
++    clear_notrace()
++    M.setup(config.test_name, config.timeout_ms or 1e3, config.options, config.settings)
++  end
++  local client = setmetatable({}, {
++    __index = function(_, name)
++      -- Workaround for not being able to yield() inside __index for Lua 5.1 :(
++      -- Otherwise I would just return the value here.
++      return function(...)
++        return exec_lua([=[
++        local name = ...
++        if type(TEST_RPC_CLIENT[name]) == 'function' then
++          return TEST_RPC_CLIENT[name](select(2, ...))
++        else
++          return TEST_RPC_CLIENT[name]
++        end
++        ]=], name, ...)
++      end
++    end;
++  })
++  local code, signal
++  local function on_request(method, args)
++    if method == "init" then
++      if config.on_init then
++        config.on_init(client, unpack(args))
++      end
++      return NIL
++    end
++    if method == 'handler' then
++      if config.on_handler then
++        config.on_handler(unpack(args))
++      end
++    end
++    return NIL
++  end
++  local function on_notify(method, args)
++    if method == 'exit' then
++      code, signal = unpack(args)
++      return stop()
++    end
++  end
++  --  TODO specify timeout?
++  --  run(on_request, on_notify, config.on_setup, 1000)
++  run(on_request, on_notify, config.on_setup)
++  if config.on_exit then
++    config.on_exit(code, signal)
++  end
++  stop()
++  if config.test_name then
++    exec_lua("vim.api.nvim_exec_autocmds('VimLeavePre', { modeline = false })")
++  end
++end
++
++return M
+diff --git a/test/functional/plugin/lsp/semantic_tokens_spec.lua b/test/functional/plugin/lsp/semantic_tokens_spec.lua
+new file mode 100644
+index 000000000000..4b2902b41883
+--- /dev/null
++++ b/test/functional/plugin/lsp/semantic_tokens_spec.lua
+@@ -0,0 +1,564 @@
++local helpers = require('test.functional.helpers')(after_each)
++
++local clear = helpers.clear
++local exec_lua = helpers.exec_lua
++local eq = helpers.eq
++local NIL = helpers.NIL
++
++-- Use these to get access to a coroutine so that I can run async tests and use
++-- yield.
++local run, stop = helpers.run, helpers.stop
++
++-- TODO(justinmk): hangs on Windows https://github.com/neovim/neovim/pull/11837
++if helpers.pending_win32(pending) then
++  return
++end
++
++-- Fake LSP server.
++local fake_lsp_server = require('test.functional.plugin.lsp.fake_lsp_server')
++
++teardown(function()
++  os.remove(fake_lsp_server.logfile)
++end)
++
++local function clear_notrace()
++  -- problem: here be dragons
++  -- solution: don't look for dragons to closely
++  clear({ env = {
++    NVIM_LUA_NOTRACK = '1',
++    VIMRUNTIME = os.getenv('VIMRUNTIME'),
++  } })
++end
++
++local function fake_lsp_server_setup(test_name, timeout_ms, options)
++  exec_lua(
++    [=[
++    lsp = require('vim.lsp')
++    local test_name, fixture_filename, logfile, timeout, options = ...
++    TEST_RPC_CLIENT_ID = lsp.start_client {
++      cmd_env = {
++        NVIM_LOG_FILE = logfile;
++        NVIM_LUA_NOTRACK = "1";
++      };
++      cmd = {
++        vim.v.progpath, '-Es', '-u', 'NONE', '--headless',
++        "-c", string.format("lua TEST_NAME = %q", test_name),
++        "-c", string.format("lua TIMEOUT = %d", timeout),
++        "-c", "luafile "..fixture_filename,
++      };
++      handlers = setmetatable({}, {
++        __index = function(t, method)
++          return function(...)
++            return vim.rpcrequest(1, 'handler', ...)
++          end
++        end;
++      });
++      workspace_folders = {{
++          uri = 'file://' .. vim.loop.cwd(),
++          name = 'test_folder',
++      }};
++      on_init = function(client, result)
++        TEST_RPC_CLIENT = client
++        vim.rpcrequest(1, "init", result)
++      end;
++      flags = {
++        allow_incremental_sync = options.allow_incremental_sync or false;
++        debounce_text_changes = options.debounce_text_changes or 0;
++      };
++      on_exit = function(...)
++        vim.rpcnotify(1, "exit", ...)
++      end;
++    }
++  ]=],
++    test_name,
++    fake_lsp_server.code,
++    fake_lsp_server.logfile,
++    timeout_ms or 1e3,
++    options or {}
++  )
++end
++
++local function test_rpc_server(config)
++  if config.test_name then
++    clear_notrace()
++    fake_lsp_server_setup(config.test_name, config.timeout_ms or 1e3, config.options)
++  end
++  local client = setmetatable({}, {
++    __index = function(_, name)
++      -- Workaround for not being able to yield() inside __index for Lua 5.1 :(
++      -- Otherwise I would just return the value here.
++      return function(...)
++        return exec_lua(
++          [=[
++        local name = ...
++        if type(TEST_RPC_CLIENT[name]) == 'function' then
++          return TEST_RPC_CLIENT[name](select(2, ...))
++        else
++          return TEST_RPC_CLIENT[name]
++        end
++        ]=],
++          name,
++          ...
++        )
++      end
++    end,
++  })
++  local code, signal
++  local function on_request(method, args)
++    if method == 'init' then
++      if config.on_init then
++        config.on_init(client, unpack(args))
++      end
++      return NIL
++    end
++    if method == 'handler' then
++      if config.on_handler then
++        config.on_handler(unpack(args))
++      end
++    end
++    return NIL
++  end
++  local function on_notify(method, args)
++    if method == 'exit' then
++      code, signal = unpack(args)
++      return stop()
++    end
++  end
++  --  TODO specify timeout?
++  --  run(on_request, on_notify, config.on_setup, 1000)
++  run(on_request, on_notify, config.on_setup)
++  if config.on_exit then
++    config.on_exit(code, signal)
++  end
++  stop()
++  if config.test_name then
++    exec_lua('lsp._vim_exit_handler()')
++  end
++end
++
++describe('semantic tokens', function()
++  before_each(function()
++    clear_notrace()
++
++    -- Run an instance of nvim on the file which contains our "scripts".
++    -- Pass TEST_NAME to pick the script.
++    local test_name = 'basic_init'
++    exec_lua(
++      [=[
++      lsp = require('vim.lsp')
++      local test_name, fixture_filename, logfile = ...
++      function test__start_client()
++        return lsp.start_client {
++          cmd_env = {
++            NVIM_LOG_FILE = logfile;
++          };
++          cmd = {
++            vim.v.progpath, '-Es', '-u', 'NONE', '--headless',
++            "-c", string.format("lua TEST_NAME = %q", test_name),
++            "-c", "luafile "..fixture_filename;
++          };
++          workspace_folders = {{
++              uri = 'file://' .. vim.loop.cwd(),
++              name = 'test_folder',
++          }};
++        }
++      end
++      TEST_CLIENT1 = test__start_client()
++    ]=],
++      test_name,
++      fake_lsp_server.code,
++      fake_lsp_server.logfile
++    )
++  end)
++
++  describe('vim.lsp.buf.semantic_tokens_full', function()
++    for _, test in ipairs({
++      {
++        it = 'semantic_tokens_full: clangd-15 on C',
++        name = 'semantic_tokens_full',
++        expected_handlers = {
++          { NIL, {}, { method = 'shutdown', client_id = 1 } },
++          {
++            NIL,
++            { data = {}, resultId = 1 },
++            { method = 'textDocument/semanticTokens/full', client_id = 1, bufnr = 1 },
++          },
++          { NIL, {}, { method = 'start', client_id = 1 } },
++        },
++        text = [[char* foo = "\n";]],
++        response = [[{"data": [0, 6, 3, 0, 8193], "resultId": "1"}]],
++        legend = [[{"tokenTypes": ["variable", "variable", "parameter", "function", "method", "function", "property", "variable", "class", "interface", "enum", "enumMember", "type", "type", "unknown", "namespace", "typeParameter", "concept", "type", "macro", "comment"], "tokenModifiers": ["declaration", "deprecated", "deduced", "readonly", "static", "abstract", "virtual", "dependentName", "defaultLibrary", "usedAsMutableReference", "functionScope", "classScope", "fileScope", "globalScope"]}]],
++        expected = {
++          [1] = {
++            [1] = {
++              length = 3,
++              line = 0,
++              modifiers = {
++                [1] = 'globalScope',
++                [2] = 'declaration',
++              },
++              start_char = 6,
++              offset_encoding = 'utf-16',
++              type = 'variable',
++            },
++          },
++        },
++      },
++      {
++        it = 'semantic_tokens_full: clangd-15 on C++',
++        name = 'semantic_tokens_full',
++        expected_handlers = {
++          { NIL, {}, { method = 'shutdown', client_id = 1 } },
++          {
++            NIL,
++            { data = {}, resultId = 1 },
++            { method = 'textDocument/semanticTokens/full', client_id = 1, bufnr = 1 },
++          },
++          { NIL, {}, { method = 'start', client_id = 1 } },
++        },
++        text = [[#include <iostream>
++int main()
++{
++#ifdef __cplusplus
++const int x = 1;
++std::cout << x << std::endl;
++#else
++  comment
++#endif
++}]],
++        response = [[{"data": [1, 4, 4, 3, 8193, 2, 9, 11, 19, 8192, 1, 12, 1, 1, 1033, 1, 2, 3, 15, 8448, 0, 5, 4, 0, 8448, 0, 8, 1, 1, 1032, 0, 5, 3, 15, 8448, 0, 5, 4, 3, 8448, 1, 0, 7, 20, 0, 1, 0, 11, 20, 0, 1, 0, 8, 20, 0], "resultId": "1"}]],
++        legend = [[{"tokenTypes": ["variable", "variable", "parameter", "function", "method", "function", "property", "variable", "class", "interface", "enum", "enumMember", "type", "type", "unknown", "namespace", "typeParameter", "concept", "type", "macro", "comment"], "tokenModifiers": ["declaration", "deprecated", "deduced", "readonly", "static", "abstract", "virtual", "dependentName", "defaultLibrary", "usedAsMutableReference", "functionScope", "classScope", "fileScope", "globalScope"]}]],
++        expected = {
++          {
++            { -- main
++              length = 4,
++              line = 1,
++              modifiers = { 'globalScope', 'declaration' },
++              start_char = 4,
++              offset_encoding = 'utf-16',
++              type = 'function',
++            },
++          },
++          {
++            { --  __cplusplus
++              length = 11,
++              line = 3,
++              modifiers = { 'globalScope' },
++              start_char = 9,
++              offset_encoding = 'utf-16',
++              type = 'macro',
++            },
++          },
++          {
++            { -- x
++              length = 1,
++              line = 4,
++              modifiers = { 'functionScope', 'readonly', 'declaration' },
++              start_char = 12,
++              offset_encoding = 'utf-16',
++              type = 'variable',
++            },
++          },
++          {
++            { -- std
++              length = 3,
++              line = 5,
++              modifiers = { 'globalScope', 'defaultLibrary' },
++              start_char = 2,
++              offset_encoding = 'utf-16',
++              type = 'namespace',
++            },
++            { -- cout
++              length = 4,
++              line = 5,
++              modifiers = { 'globalScope', 'defaultLibrary' },
++              start_char = 7,
++              offset_encoding = 'utf-16',
++              type = 'variable',
++            },
++            { -- x
++              length = 1,
++              line = 5,
++              modifiers = { 'functionScope', 'readonly' },
++              start_char = 15,
++              offset_encoding = 'utf-16',
++              type = 'variable',
++            },
++            { -- std
++              length = 3,
++              line = 5,
++              modifiers = { 'globalScope', 'defaultLibrary' },
++              start_char = 20,
++              offset_encoding = 'utf-16',
++              type = 'namespace',
++            },
++            { -- endl
++              length = 4,
++              line = 5,
++              modifiers = { 'globalScope', 'defaultLibrary' },
++              start_char = 25,
++              offset_encoding = 'utf-16',
++              type = 'function',
++            },
++          },
++          {
++            { -- #else comment #endif
++              length = 7,
++              line = 6,
++              modifiers = {},
++              start_char = 0,
++              offset_encoding = 'utf-16',
++              type = 'comment',
++            },
++          },
++          {
++            {
++              length = 11,
++              line = 7,
++              modifiers = {},
++              start_char = 0,
++              offset_encoding = 'utf-16',
++              type = 'comment',
++            },
++          },
++          {
++            {
++              length = 8,
++              line = 8,
++              modifiers = {},
++              start_char = 0,
++              offset_encoding = 'utf-16',
++              type = 'comment',
++            },
++          },
++        },
++      },
++      {
++        it = 'semantic_tokens_full: sumneko_lua',
++        name = 'semantic_tokens_full',
++        expected_handlers = {
++          { NIL, {}, { method = 'shutdown', client_id = 1 } },
++          {
++            NIL,
++            { data = {}, resultId = 1 },
++            { method = 'textDocument/semanticTokens/full', client_id = 1, bufnr = 1 },
++          },
++          { NIL, {}, { method = 'start', client_id = 1 } },
++        },
++        text = [[-- comment
++local a = 1
++b = "as"]],
++        response = [[{"data": [0, 0, 10, 17, 0, 1, 6, 1, 8, 1, 1, 0, 1, 8, 8]}]],
++        legend = [[{"tokenTypes": ["namespace", "type", "class", "enum", "interface", "struct", "typeParameter", "parameter", "variable", "property", "enumMember", "event", "function", "method", "macro", "keyword", "modifier", "comment", "string", "number", "regexp", "operator"], "tokenModifiers": ["declaration", "definition", "readonly", "static", "deprecated", "abstract", "async", "modification", "documentation", "defaultLibrary"]}]],
++        expected = {
++          {
++            {
++              length = 10,
++              line = 0,
++              modifiers = {},
++              start_char = 0,
++              offset_encoding = 'utf-16',
++              type = 'comment', -- comment
++            },
++          },
++          {
++            {
++              length = 1,
++              line = 1,
++              modifiers = { 'declaration' }, -- a
++              start_char = 6,
++              offset_encoding = 'utf-16',
++              type = 'variable',
++            },
++          },
++          {
++            {
++              length = 1,
++              line = 2,
++              modifiers = { 'static' }, -- b (global)
++              start_char = 0,
++              offset_encoding = 'utf-16',
++              type = 'variable',
++            },
++          },
++        },
++      },
++      {
++        it = 'semantic_tokens_full: rust-analyzer',
++        name = 'semantic_tokens_full',
++        expected_handlers = {
++          { NIL, {}, { method = 'shutdown', client_id = 1 } },
++          {
++            NIL,
++            { data = {}, resultId = 1 },
++            { method = 'textDocument/semanticTokens/full', client_id = 1, bufnr = 1 },
++          },
++          { NIL, {}, { method = 'start', client_id = 1 } },
++        },
++        text = [[pub fn main() {
++  break rust;
++  /// what?
++}
++]],
++        response = [[{"data": [0, 0, 3, 1, 0, 0, 4, 2, 1, 0, 0, 3, 4, 14, 524290, 0, 4, 1, 45, 0, 0, 1, 1, 45, 0, 0, 2, 1, 26, 0, 1, 4, 5, 1, 8192, 0, 6, 4, 52, 0, 0, 4, 1, 48, 0, 1, 4, 9, 0, 1, 1, 0, 1, 26, 0], "resultId": "1"}]],
++        legend = [[{"tokenTypes": ["comment", "keyword", "string", "number", "regexp", "operator", "namespace", "type", "struct", "class", "interface", "enum", "enumMember", "typeParameter", "function", "method", "property", "macro", "variable", "parameter", "angle", "arithmetic", "attribute", "attributeBracket", "bitwise", "boolean", "brace", "bracket", "builtinAttribute", "builtinType", "character", "colon", "comma", "comparison", "constParameter", "derive", "dot", "escapeSequence", "formatSpecifier", "generic", "label", "lifetime", "logical", "macroBang", "operator", "parenthesis", "punctuation", "selfKeyword", "semicolon", "typeAlias", "toolModule", "union", "unresolvedReference"], "tokenModifiers": ["documentation", "declaration", "definition", "static", "abstract", "deprecated", "readonly", "defaultLibrary", "async", "attribute", "callable", "constant", "consuming", "controlFlow", "crateRoot", "injected", "intraDocLink", "library", "mutable", "public", "reference", "trait", "unsafe"]}]],
++        expected = {
++          {
++            {
++              length = 3, -- pub
++              line = 0,
++              modifiers = {},
++              start_char = 0,
++              offset_encoding = 'utf-16',
++              type = 'keyword',
++            },
++            {
++              length = 2, -- fn
++              line = 0,
++              modifiers = {},
++              start_char = 4,
++              offset_encoding = 'utf-16',
++              type = 'keyword',
++            },
++            {
++              length = 4, -- main
++              line = 0,
++              modifiers = { 'public', 'declaration' },
++              start_char = 7,
++              offset_encoding = 'utf-16',
++              type = 'function',
++            },
++            {
++              length = 1,
++              line = 0,
++              modifiers = {},
++              start_char = 11,
++              offset_encoding = 'utf-16',
++              type = 'parenthesis',
++            },
++            {
++              length = 1,
++              line = 0,
++              modifiers = {},
++              start_char = 12,
++              offset_encoding = 'utf-16',
++              type = 'parenthesis',
++            },
++            {
++              length = 1,
++              line = 0,
++              modifiers = {},
++              start_char = 14,
++              offset_encoding = 'utf-16',
++              type = 'brace',
++            },
++          },
++          {
++            {
++              length = 5, -- break
++              line = 1,
++              modifiers = { 'controlFlow' },
++              start_char = 4,
++              offset_encoding = 'utf-16',
++              type = 'keyword',
++            },
++            {
++              length = 4, -- rust
++              line = 1,
++              modifiers = {},
++              start_char = 10,
++              offset_encoding = 'utf-16',
++              type = 'unresolvedReference',
++            },
++            {
++              length = 1,
++              line = 1,
++              modifiers = {},
++              start_char = 14,
++              offset_encoding = 'utf-16',
++              type = 'semicolon',
++            },
++          },
++          {
++            {
++              length = 9,
++              line = 2,
++              modifiers = { 'documentation' },
++              start_char = 4,
++              offset_encoding = 'utf-16',
++              type = 'comment', -- /// what?
++            },
++          },
++          {
++            {
++              length = 1,
++              line = 3,
++              modifiers = {},
++              start_char = 0,
++              offset_encoding = 'utf-16',
++              type = 'brace',
++            },
++          },
++        },
++      },
++    }) do
++      it(test.it, function()
++        local client
++        test_rpc_server({
++          test_name = test.name,
++          on_init = function(client_)
++            client = client_
++            eq(true, client.resolved_capabilities().semantic_tokens_full)
++          end,
++          on_setup = function() end,
++          on_exit = function(code, signal)
++            eq(0, code, 'exit code', fake_lsp_server.logfile)
++            eq(0, signal, 'exit signal', fake_lsp_server.logfile)
++          end,
++          on_handler = function(err, result, ctx)
++            ctx.params = nil
++            eq(table.remove(test.expected_handlers), { err, result, ctx })
++            if ctx.method == 'start' then
++              exec_lua(
++                [[
++              local test = ...
++              local bufnr = vim.api.nvim_get_current_buf()
++              vim.lsp.buf_attach_client(bufnr, TEST_RPC_CLIENT_ID)
++              vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, vim.fn.split(test.text, "\n"))
++              vim.lsp.buf.semantic_tokens_full()
++            ]],
++                test
++              )
++            elseif ctx.method == 'textDocument/semanticTokens/full' then
++              local tokens = exec_lua(
++                [[
++                local ctx, test = ...
++                local bufnr = vim.api.nvim_get_current_buf()
++                local tokens = {[bufnr] = {}}
++                local client = vim.lsp.get_client_by_id(ctx.client_id)
++                client.server_capabilities.semanticTokensProvider.legend = vim.fn.json_decode(test.legend)
++
++                local semantic_tokens = require "vim.lsp.semantic_tokens"
++                vim.lsp.handlers["textDocument/semanticTokens/full"] = vim.lsp.with(semantic_tokens.on_full, {
++                  on_token = function(ctx, token)
++                    tokens[ctx.bufnr][token.line + 1] = tokens[ctx.bufnr][token.line + 1] or {}
++                    table.insert(tokens[ctx.bufnr][token.line + 1], token)
++                  end,
++                  on_invalidate_range = function(ctx) tokens[ctx.bufnr] = {} end,
++                })
++                vim.lsp.handlers["textDocument/semanticTokens/full"](nil, vim.fn.json_decode(test.response), ctx)
++                return vim.tbl_values(tokens[bufnr])
++              ]],
++                ctx,
++                test
++              )
++              eq(test.expected, tokens)
++            elseif ctx.method == 'shutdown' then
++              client.stop()
++            end
++          end,
++        })
++      end)
++    end
++  end)
++end)
+diff --git a/test/functional/plugin/lsp_spec.lua b/test/functional/plugin/lsp_spec.lua
+index cd7415de90d1..8f6d5963ba50 100644
+--- a/test/functional/plugin/lsp_spec.lua
++++ b/test/functional/plugin/lsp_spec.lua
+@@ -22,14 +22,16 @@ local meths = helpers.meths
+ 
+ -- Use these to get access to a coroutine so that I can run async tests and use
+ -- yield.
+-local run, stop = helpers.run, helpers.stop
++local stop = helpers.stop
+ 
+ -- TODO(justinmk): hangs on Windows https://github.com/neovim/neovim/pull/11837
+ if helpers.pending_win32(pending) then return end
+ 
+ -- Fake LSP server.
+-local fake_lsp_code = 'test/functional/fixtures/fake-lsp-server.lua'
+-local fake_lsp_logfile = 'Xtest-fake-lsp.log'
++local fake_lsp_server = require('test.functional.plugin.lsp.fake_lsp_server')
++local fake_lsp_logfile = fake_lsp_server.logfile
++local fake_lsp_code = fake_lsp_server.code
++local test_rpc_server = fake_lsp_server.test
+ 
+ teardown(function()
+   os.remove(fake_lsp_logfile)
+@@ -44,103 +46,6 @@ local function clear_notrace()
+   }}
+ end
+ 
+-
+-local function fake_lsp_server_setup(test_name, timeout_ms, options, settings)
+-  exec_lua([=[
+-    lsp = require('vim.lsp')
+-    local test_name, fixture_filename, logfile, timeout, options, settings = ...
+-    TEST_RPC_CLIENT_ID = lsp.start_client {
+-      cmd_env = {
+-        NVIM_LOG_FILE = logfile;
+-        NVIM_LUA_NOTRACK = "1";
+-      };
+-      cmd = {
+-        vim.v.progpath, '-Es', '-u', 'NONE', '--headless',
+-        "-c", string.format("lua TEST_NAME = %q", test_name),
+-        "-c", string.format("lua TIMEOUT = %d", timeout),
+-        "-c", "luafile "..fixture_filename,
+-      };
+-      handlers = setmetatable({}, {
+-        __index = function(t, method)
+-          return function(...)
+-            return vim.rpcrequest(1, 'handler', ...)
+-          end
+-        end;
+-      });
+-      workspace_folders = {{
+-          uri = 'file://' .. vim.loop.cwd(),
+-          name = 'test_folder',
+-      }};
+-      on_init = function(client, result)
+-        TEST_RPC_CLIENT = client
+-        vim.rpcrequest(1, "init", result)
+-      end;
+-      flags = {
+-        allow_incremental_sync = options.allow_incremental_sync or false;
+-        debounce_text_changes = options.debounce_text_changes or 0;
+-      };
+-      settings = settings;
+-      on_exit = function(...)
+-        vim.rpcnotify(1, "exit", ...)
+-      end;
+-    }
+-  ]=], test_name, fake_lsp_code, fake_lsp_logfile, timeout_ms or 1e3, options or {}, settings or {})
+-end
+-
+-local function test_rpc_server(config)
+-  if config.test_name then
+-    clear_notrace()
+-    fake_lsp_server_setup(config.test_name, config.timeout_ms or 1e3, config.options, config.settings)
+-  end
+-  local client = setmetatable({}, {
+-    __index = function(_, name)
+-      -- Workaround for not being able to yield() inside __index for Lua 5.1 :(
+-      -- Otherwise I would just return the value here.
+-      return function(...)
+-        return exec_lua([=[
+-        local name = ...
+-        if type(TEST_RPC_CLIENT[name]) == 'function' then
+-          return TEST_RPC_CLIENT[name](select(2, ...))
+-        else
+-          return TEST_RPC_CLIENT[name]
+-        end
+-        ]=], name, ...)
+-      end
+-    end;
+-  })
+-  local code, signal
+-  local function on_request(method, args)
+-    if method == "init" then
+-      if config.on_init then
+-        config.on_init(client, unpack(args))
+-      end
+-      return NIL
+-    end
+-    if method == 'handler' then
+-      if config.on_handler then
+-        config.on_handler(unpack(args))
+-      end
+-    end
+-    return NIL
+-  end
+-  local function on_notify(method, args)
+-    if method == 'exit' then
+-      code, signal = unpack(args)
+-      return stop()
+-    end
+-  end
+-  --  TODO specify timeout?
+-  --  run(on_request, on_notify, config.on_setup, 1000)
+-  run(on_request, on_notify, config.on_setup)
+-  if config.on_exit then
+-    config.on_exit(code, signal)
+-  end
+-  stop()
+-  if config.test_name then
+-    exec_lua("vim.api.nvim_exec_autocmds('VimLeavePre', { modeline = false })")
+-  end
+-end
+-
+ describe('LSP', function()
+   before_each(function()
+     clear_notrace()
+@@ -463,23 +368,16 @@ describe('LSP', function()
+       }
+     end)
+     it('workspace/configuration returns NIL per section if client was started without config.settings', function()
+-      local result = nil
+-      test_rpc_server {
+-        test_name = 'basic_init';
+-        on_init = function(c) c.stop() end,
+-        on_setup = function()
+-          result = exec_lua [[
+-            local result = {
+-              items = {
+-                {section = 'foo'},
+-                {section = 'bar'},
+-              }
+-            }
+-            return vim.lsp.handlers['workspace/configuration'](nil, result, {client_id=TEST_RPC_CLIENT_ID})
+-          ]]
+-        end
+-      }
+-      eq({ NIL, NIL }, result)
++      fake_lsp_server.setup('workspace/configuration no settings')
++      eq({ NIL, NIL, }, exec_lua [[
++        local result = {
++          items = {
++            {section = 'foo'},
++            {section = 'bar'},
++          }
++        }
++        return vim.lsp.handlers['workspace/configuration'](nil, result, {client_id=TEST_RPC_CLIENT_ID})
++      ]])
+     end)
+ 
+     it('should verify capabilities sent', function()
+
