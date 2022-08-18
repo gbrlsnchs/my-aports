@@ -2,7 +2,7 @@
 # Maintainer: Gabriel Sanches <gabriel@gsr.dev>
 pkgname=efibootstub
 pkgver=2.022
-pkgrel=0
+pkgrel=1
 pkgdesc="Helper script for generating EFI Boot stubs"
 url="https://github.com/gbrlsnchs/my-aports"
 arch="noarch"
@@ -21,6 +21,6 @@ package() {
 }
 
 sha512sums="
-ff83a30c0907fb659e922185837f5aac9e256422a0001483abd4ac7f4d65cfe9ed2af69b090adb7fc0c7dc000f23de1d2d6bcbeed7ef076af726f3b66fae1211  efibootstub
+fc2016d19d14dc276e61b264813e64f0ed91ec590ec8076e1763335741a8b064729edd69e8b16d62d8b3d0974d6133ff17b5c9bfb206a9b45ba9caa9c442aba3  efibootstub
 eabef4b5d0a3c52e49405e8c2a521c3d18a59b65e9f46d0c2bebdef2fd10ff58ded59e88e36d69ed3d63c40e0e2c507e554a7be7a51275a0aaec9e5c1caec136  LICENSE
 "

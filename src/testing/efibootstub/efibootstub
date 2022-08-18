@@ -1,24 +1,9 @@
 #!/bin/sh
 
-set -e
-
-_bold="$(tput bold)"
-_italic="$(tput sitm)"
-_red="$(tput setaf 9)"
-_yellow="$(tput setaf 11)"
-_reset="$(tput sgr0)"
-
 die() {
 	trap - EXIT
-	printf "\n%s%sERROR%s: missing fields\n" "$_red" "$_bold" "$_reset"
+	printf "\nERROR: missing fields\n"
 	exit 1
-}
-
-preview() {
-	label="$1"
-	value="${2:-$_reset$_yellow${_italic}missing}"
-
-	printf "%s:@%s%s%s\n\n" "$label" "$_bold" "$value" "$_reset"
 }
 
 BOOT_UCODE="${BOOT_UCODE:-amd-ucode.img}"
@@ -30,23 +15,21 @@ params="root=$BOOT_ROOT rw $BOOT_PARAMS \
 	initrd=\\$BOOT_UCODE \
 	initrd=\\$BOOT_INITRAMFS"
 
-_preview="$(preview root "$BOOT_ROOT")"
-_preview="$_preview\n$(preview params "$BOOT_PARAMS")"
-_preview="$_preview\n$(preview ucode "$BOOT_UCODE")"
-_preview="$_preview\n$(preview initramfs "$BOOT_INITRAMFS")"
-_preview="$_preview\n$(preview label "$BOOT_LABEL")"
-_preview="$_preview\n$(preview disk "$BOOT_DISK")"
-_preview="$_preview\n$(preview partition "$BOOT_PART")"
-_preview="$_preview\n$(preview linuz "$BOOT_LINUZ")"
-
-echo "$_preview" | column --separator='@' --table
+echo "root:      ${BOOT_ROOT:-(BOOT_ROOT missing)}"
+echo "params:    ${BOOT_PARAMS:-(BOOT_PARAMS missing)}"
+echo "ucode:     ${BOOT_UCODE:-(BOOT_UCODE missing)}"
+echo "initramfs: ${BOOT_INITRAMFS:-(BOOT_INITRAMFS missing)}"
+echo "label:     ${BOOT_LABEL:-(BOOT_LABEL missing)}"
+echo "disk:      ${BOOT_DISK:-(BOOT_DISK missing)}"
+echo "partition: ${BOOT_PART:-(BOOT_PART missing)}"
+echo "linuz:     ${BOOT_LINUZ:-(BOOT_LINUZ missing)}"
 
 [ -z "$BOOT_ROOT" ] && die
 [ -z "$BOOT_PARAMS" ] && die
 [ -z "$BOOT_DISK" ] && die
 [ -z "$BOOT_PART" ] && die
 
-printf "\n%sDo you wish to proceed?%s " "$_bold" "$_reset"
+printf "\nDo you wish to proceed? [Y\n] "
 read -r yesno
 
 if [ "$yesno" != "${yesno#[Yy]}" ]; then
@@ -56,10 +39,10 @@ if [ "$yesno" != "${yesno#[Yy]}" ]; then
 		--disk "$BOOT_DISK" \
 		--part "$BOOT_PART" \
 		--loader="\\$BOOT_LINUZ" \
-		--unicode="$params" \
+		--unicode "$params" \
 		--verbose
 else
-	echo "${_yellow}EFI stubbing aborted!$_reset"
+	echo "EFI stubbing aborted!"
 	exit 1
 fi
 
