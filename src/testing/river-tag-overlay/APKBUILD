@@ -1,0 +1,28 @@
+# Contributor: Gabriel Sanches <gabriel@gsr.dev>
+# Maintainer: Gabriel Sanches <gabriel@gsr.dev>
+pkgname=river-tag-overlay
+pkgver=0_git20220818
+pkgrel=0
+pkgdesc="Tool for showing information about River tags"
+url="https://git.sr.ht/~leon_plickat/river-tag-overlay"
+arch="all"
+license="GPLv3"
+depends="wayland pixman"
+makedepends="wayland-dev pixman-dev"
+subpackages="$pkgname-doc"
+options="!check"
+_commit=f7e1da661da7e80137ad44c3dfa6158282455d2e
+source="https://git.sr.ht/~leon_plickat/river-tag-overlay/archive/$_commit.tar.gz"
+builddir="$srcdir/$pkgname-$_commit"
+
+build() {
+	make
+}
+
+package() {
+	make install PREFIX="$pkgdir/usr"
+}
+
+sha512sums="
+5859714c3d03302892c1092bcef3a53935b1b5073addfd8effed284d6725c823454949860219dc3451bcb17e2d98abd3f859d9b205d96c2ecdd5cb53ba4c2fda  f7e1da661da7e80137ad44c3dfa6158282455d2e.tar.gz
+"
