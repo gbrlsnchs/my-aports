@@ -29,7 +29,7 @@ echo "linuz:     ${BOOT_LINUZ:-(BOOT_LINUZ missing)}"
 [ -z "$BOOT_DISK" ] && die
 [ -z "$BOOT_PART" ] && die
 
-printf "\nDo you wish to proceed? [Y\n] "
+printf "\nDo you wish to proceed? [Y/n] "
 read -r yesno
 
 if [ "$yesno" != "${yesno#[Yy]}" ]; then
