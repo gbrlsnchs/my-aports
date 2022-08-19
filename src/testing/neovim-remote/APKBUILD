@@ -1,0 +1,28 @@
+# Contributor: Gabriel Sanches <gabriel@gsr.dev>
+# Maintainer: Gabriel Sanches <gabriel@gsr.dev>
+pkgname=neovim-remote
+pkgver=2.5.1
+pkgrel=0
+pkgdesc="CLI tool for controlling Neovim remotely"
+url="https://github.com/mhinz/neovim-remote"
+arch="all"
+license="MIT"
+depends="python3 py3-pynvim py3-psutil"
+makedepends="py3-setuptools"
+subpackages="$pkgname-doc"
+options="!check"
+source="$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz"
+
+build() {
+	python3 setup.py build
+}
+
+package() {
+	python3 setup.py install --prefix=/usr --root="$pkgdir"
+
+	install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}
+
+sha512sums="
+2d3c921485b18a9538f82b3a057834bdec5d8568a84528afaf52d73a69b60cf1eb6dee33f50a10d961fc0985c7a7d262a4edfc9f26f3ffd5d945472855fe3121  neovim-remote-2.5.1.tar.gz
+"
