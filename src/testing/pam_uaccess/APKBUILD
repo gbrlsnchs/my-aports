@@ -1,0 +1,30 @@
+# Contributor: Gabriel Sanches <gabriel@gsr.dev>
+# Maintainer: Gabriel Sanches <gabriel@gsr.dev>
+pkgname=pam_uaccess
+pkgver=0_git20220820
+pkgrel=0
+pkgdesc="PAM module to grant access to devices tagged \"uaccess\""
+url="https://git.sr.ht/~kennylevinsen/pam_uaccess"
+arch="all"
+license="MIT"
+makedepends="meson samurai linux-pam-dev acl-dev eudev-dev"
+options="!check"
+subpackages="$pkgname-doc"
+_commit=54fbf043c63cc500b4850b0b4a12ea14078f2b53
+source="https://git.sr.ht/~kennylevinsen/pam_uaccess/archive/$_commit.tar.gz"
+builddir="$srcdir/$pkgname-$_commit"
+
+build() {
+	meson build --prefix="$pkgdir"
+	ninja -C build
+}
+
+package() {
+	ninja -C build install
+
+	install -Dm644 LICENSE -t "$pkgdir/usr/share/licenses/$pkgname/"
+}
+
+sha512sums="
+cd35ffa980c5f0a195b77cd678d11c328931f139e770c41b14588f4fdc1444cda70d141579381a9cde67e9d4e1aa621e5df2d4f5065c5a83ad36a680cfb93105  54fbf043c63cc500b4850b0b4a12ea14078f2b53.tar.gz
+"
