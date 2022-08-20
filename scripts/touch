@@ -15,4 +15,4 @@ podman container run \
 	--userns=keep-id \
 	--workdir="$pkgdir" \
 	--volume="$pkgdir:$pkgdir" \
-	"my-aports-$(uname --machine)" newapkbuild $cmd_args "$(basename "$pkgname")"
+	"my-aports-$(uname --machine)" newapkbuild $cmd_args "$([ -n "$pkgname" ] && basename "$pkgname")"
