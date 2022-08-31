@@ -2,12 +2,12 @@
 # Maintainer: Gabriel Sanches <gabriel@gsr.dev>
 pkgname=efibootstub
 pkgver=2.022
-pkgrel=2
+pkgrel=3
 pkgdesc="Helper script for generating EFI Boot stubs"
 url="https://github.com/gbrlsnchs/my-aports"
 arch="noarch"
 license="MIT"
-depends="efibootmgr"
+depends="efibootmgr blkid doas"
 subpackages="$pkgname-doc"
 options="!check"
 source="

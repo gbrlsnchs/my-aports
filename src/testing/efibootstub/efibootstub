@@ -1,44 +1,63 @@
 #!/bin/sh
 
 die() {
+	_varname="$1"
+
 	trap - EXIT
-	printf "\nERROR: missing fields\n"
+	echo "ERROR: missing '$_varname' variable"
 	exit 1
 }
 
 BOOT_UCODE="${BOOT_UCODE:-amd-ucode.img}"
 BOOT_INITRAMFS="${BOOT_INITRAMFS:-initramfs-lts}"
-BOOT_LINUZ="${BOOT_LINUZ:-vmlinuz-lts}"
+BOOT_LINUZ="${BOOT_LINUZ:-\vmlinuz-lts}"
 BOOT_LABEL="${BOOT_LABEL:-Alpine Linux}"
 
-params="root=$BOOT_ROOT rw $BOOT_PARAMS \
-	initrd=\\$BOOT_UCODE \
-	initrd=\\$BOOT_INITRAMFS"
+[ -z "$BOOT_ROOT" ] && die "BOOT_ROOT"
+[ -z "$BOOT_DISK" ] && die "BOOT_DISK"
+[ -z "$BOOT_PART" ] && die "BOOT_PART"
 
-echo "root:      ${BOOT_ROOT:-(BOOT_ROOT missing)}"
-echo "params:    ${BOOT_PARAMS:-(BOOT_PARAMS missing)}"
-echo "ucode:     ${BOOT_UCODE:-(BOOT_UCODE missing)}"
-echo "initramfs: ${BOOT_INITRAMFS:-(BOOT_INITRAMFS missing)}"
-echo "label:     ${BOOT_LABEL:-(BOOT_LABEL missing)}"
-echo "disk:      ${BOOT_DISK:-(BOOT_DISK missing)}"
-echo "partition: ${BOOT_PART:-(BOOT_PART missing)}"
-echo "linuz:     ${BOOT_LINUZ:-(BOOT_LINUZ missing)}"
+params="root=$BOOT_ROOT rw quiet"
 
-[ -z "$BOOT_ROOT" ] && die
-[ -z "$BOOT_PARAMS" ] && die
-[ -z "$BOOT_DISK" ] && die
-[ -z "$BOOT_PART" ] && die
+if [ -n "$BOOT_MODULES" ]; then
+	params="$params modules=$BOOT_MODULES"
+fi
+
+if [ -n "$BOOT_ROOTFLAGS" ]; then
+	params="$params rootflags=$BOOT_ROOTFLAGS"
+fi
+
+if [ -n "$BOOT_CRYPTROOT" ]; then
+	_cryptroot="$(blkid -o value -s UUID "$BOOT_CRYPTROOT")"
+	params="$params cryptroot=UUID=$_cryptroot cryptdm=${BOOT_CRYPTDM:-cryptroot}"
+fi
+
+if [ -n "$BOOT_RESUME" ]; then
+	params="$params resume=$BOOT_RESUME"
+
+	if [ -n "$BOOT_RESUME_OFFSET" ]; then
+		params="$params resume_offset=$BOOT_RESUME_OFFSET"
+	fi
+fi
+
+params="$params initrd=\\$BOOT_UCODE initrd=\\$BOOT_INITRAMFS"
+
+echo "unicode:    $params"
+echo "label:      $BOOT_LABEL"
+echo "disk:       $BOOT_DISK"
+echo "part:       $BOOT_PART"
+echo "loader:     $BOOT_LINUZ"
 
 printf "\nDo you wish to proceed? [Y/n] "
 read -r yesno
 
 if [ "$yesno" != "${yesno#[Yy]}" ]; then
-	efibootmgr \
+	doas efibootmgr \
 		--create \
 		--label "$BOOT_LABEL" \
 		--disk "$BOOT_DISK" \
 		--part "$BOOT_PART" \
-		--loader="\\$BOOT_LINUZ" \
+		--loader="$BOOT_LINUZ" \
 		--unicode "$params" \
 		--verbose
 else
