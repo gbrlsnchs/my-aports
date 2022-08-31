@@ -1,0 +1,15 @@
+diff --git a/main.go b/main.go
+index eebaf2f..691c7c4 100644
+--- a/main.go
++++ b/main.go
+@@ -379,7 +379,9 @@ func commandWithSudo(cmd ...string) *exec.Cmd {
+ 	if u, err := user.Current(); err == nil && u.Uid == "0" {
+ 		return exec.Command(cmd[0], cmd[1:]...)
+ 	}
+-	if !binaryExists("sudo") {
++	if binaryExists("doas") {
++		return exec.Command("doas", cmd...)
++	} else if !binaryExists("sudo") {
+ 		sudoWarningOnce.Do(func() {
+ 			log.Println(`Warning: "sudo" is not available, and mkcert is not running as root. The (un)install operation might fail. ⚠️`)
+ 		})
