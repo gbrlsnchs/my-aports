@@ -20,18 +20,10 @@ https://dl-cdn.alpinelinux.org/alpine/edge/community
 https://dl-cdn.alpinelinux.org/alpine/edge/testing
 EOF
 
-user_args=""
-
-if [ "$target_arch" = "$(uname --machine)" ]; then
-	# Builds on 'x86_64' fail without this, while on 'aarch64' builds fail if not run as root.
-	user_args="--userns=keep-id --group-add=abuild"
-fi
-
 podman container run \
 	--rm \
 	--tty \
 	--interactive \
-	$user_args \
 	--env="REPODEST=/var/my-aports" \
 	--env="SRCDEST=/var/cache/distfiles" \
 	--env="srcdir=$pkgdir/src/$target_arch" \
@@ -44,14 +36,12 @@ podman container run \
 	--volume="$PWD/$priv_key_path:/tmp/$priv_key" \
 	--volume="$PWD/$priv_key_path.pub:/etc/apk/keys/$priv_key.pub" \
 	--volume="$PWD/data/abuild.conf:/etc/abuild.conf" \
-	"my-aports-$target_arch" abuild -fFrc
+	"my-aports-$target_arch" sh -c 'apk update && abuild -fFrc'
 
 podman container run \
 	--rm \
 	--tty \
 	--interactive \
-	--userns=keep-id \
-	--group-add=abuild \
 	--env="REPODEST=/var/my-aports" \
 	--env="SRCDEST=/var/cache/distfiles" \
 	--env="srcdir=$pkgdir/src/$target_arch" \
