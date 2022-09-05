@@ -1,0 +1,44 @@
+# Contributor: Gabriel Sanches <gabriel@gsr.dev>
+# Maintainer: Gabriel Sanches <gabriel@gsr.dev>
+pkgname=zls
+pkgver=0.9.0
+pkgrel=0
+pkgdesc="Zig Language Server"
+url="https://github.com/zigtools/zls"
+arch="x86_64 aarch64"
+license="MIT"
+makedepends="zig"
+subpackages="$pkgname-doc"
+_known_folders_sha=9db1b99219c767d5e24994b1525273fe4031e464
+_zinput_sha=5e0d781eee025cfea271dd10c1939d201fe4fd25
+source="
+	zls-$pkgver.tar.gz::$url/archive/refs/tags/0.9.0.tar.gz
+	known-folders.tar.gz::https://github.com/ziglibs/known-folders/archive/$_known_folders_sha.tar.gz
+	zinput.tar.gz::https://github.com/ziglibs/zinput/archive/$_zinput_sha.tar.gz
+	"
+
+prepare() {
+	default_prepare
+
+	rm -rf src/known-folders && mv "$srcdir/known-folders-$_known_folders_sha" src/known-folders
+	rm -rf src/zinput && mv "$srcdir/zinput-$_zinput_sha" src/zinput
+}
+
+build() {
+	zig build -Drelease-safe
+}
+
+check() {
+	zig build test
+}
+
+package() {
+	zig build install -p "$pkgdir/usr"
+	install -Dm644 LICENSE "$pkgdir"/usr/share/licenses/zls/LICENSE
+}
+
+sha512sums="
+a91dc86217576caee0e2bc6d98ea5406d194783cac260e1e369421453ba497c53e0a46c54e995a0ee41cbf06130798425bcde93b5fdb0408bb8f5940a7f9505e  zls-0.9.0.tar.gz
+5fe6c483f8321dcc941a3c52e35797a61cfbcaa3ca399e8af8e1feaef6c0ee7479892a67155aba920d736f1e37d8395782c407022850c749d0fa4445108cc7e0  known-folders.tar.gz
+634972ec074c0825cf27a756e0e0c97e1d509a5774cab13ee89f91bc317e1d1eca2758ec598fce1b4099ceeb99761625a766a1602e396f4e628a0a233e130819  zinput.tar.gz
+"
